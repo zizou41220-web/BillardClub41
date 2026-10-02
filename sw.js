@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bc41-cache-v2';
+const CACHE_NAME = 'bc41-cache-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const urlsToCache = [
 
 // Installation du service worker et mise en cache des fichiers
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Force le nouveau SW à s'activer immédiatement
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -41,6 +42,7 @@ self.addEventListener('fetch', event => {
 
 // Nettoyage des anciens caches lors de la mise à jour
 self.addEventListener('activate', event => {
+  event.waitUntil(clients.claim()); // Prend le contrôle des clients immédiatement
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then(cacheNames => {
