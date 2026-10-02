@@ -1240,10 +1240,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return categories;
     }
 
+    function sauvegarderCategoriesNouveauJoueur() {
+        if (newPlayerAmateurEl) localStorage.setItem('newPlayerAmateur', newPlayerAmateurEl.checked);
+        if (newPlayerPrestigeEl) localStorage.setItem('newPlayerPrestige', newPlayerPrestigeEl.checked);
+        if (newPlayerGuestEl) localStorage.setItem('newPlayerGuest', newPlayerGuestEl.checked);
+    }
+
     function reinitialiserCategoriesNouveauJoueur() {
-        if (newPlayerAmateurEl) newPlayerAmateurEl.checked = true;
-        if (newPlayerPrestigeEl) newPlayerPrestigeEl.checked = true;
-        if (newPlayerGuestEl) newPlayerGuestEl.checked = false;
+        const savedAmateur = localStorage.getItem('newPlayerAmateur');
+        const savedPrestige = localStorage.getItem('newPlayerPrestige');
+        const savedGuest = localStorage.getItem('newPlayerGuest');
+
+        if (newPlayerAmateurEl) {
+            newPlayerAmateurEl.checked = savedAmateur !== null ? savedAmateur === 'true' : true;
+            newPlayerAmateurEl.addEventListener('change', sauvegarderCategoriesNouveauJoueur);
+        }
+        if (newPlayerPrestigeEl) {
+            newPlayerPrestigeEl.checked = savedPrestige !== null ? savedPrestige === 'true' : true;
+            newPlayerPrestigeEl.addEventListener('change', sauvegarderCategoriesNouveauJoueur);
+        }
+        if (newPlayerGuestEl) {
+            newPlayerGuestEl.checked = savedGuest !== null ? savedGuest === 'true' : false;
+            newPlayerGuestEl.addEventListener('change', sauvegarderCategoriesNouveauJoueur);
+        }
     }
 
     function synchroniserSelectionCategorie() {
@@ -4875,6 +4894,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    reinitialiserCategoriesNouveauJoueur();
+    
     initDB().then(async () => {
         await chargerJoueurs();
         await chargerLogoClub();
