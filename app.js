@@ -77,6 +77,7 @@ async function initAuth() {
     if (event === 'PASSWORD_RECOVERY' && session) {
       currentUser = session.user;
       showView('app-shell');
+      window.isRecoveryMode = true;
       // Ouvrir directement le modal de changement de mot de passe
       const changePassModal = document.getElementById('change-password-modal');
       if (changePassModal) {
@@ -515,9 +516,15 @@ function initNavigation() {
   const changePassForm = document.getElementById('change-password-form');
 
   if (cancelChangePassBtn && changePassModal) {
-    cancelChangePassBtn.addEventListener('click', () => {
+    cancelChangePassBtn.addEventListener('click', async () => {
       changePassModal.classList.add('hidden');
       if (changePassForm) changePassForm.reset();
+      
+      if (window.isRecoveryMode) {
+        window.isRecoveryMode = false;
+        await supabaseClient.auth.signOut();
+        alert("Réinitialisation annulée. Vous avez été déconnecté.");
+      }
     });
   }
 
@@ -544,6 +551,7 @@ function initNavigation() {
           alert("✅ Votre mot de passe a été mis à jour avec succès !");
           changePassModal.classList.add('hidden');
           changePassForm.reset();
+          window.isRecoveryMode = false;
         }
       } catch (err) {
         alert("❌ Une erreur inattendue est survenue : " + err.message);

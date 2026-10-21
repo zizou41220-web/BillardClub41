@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bc41-cache-v3';
+const CACHE_NAME = 'bc41-cache-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -7,7 +7,7 @@ const urlsToCache = [
   './app.js',
   './tournaments.js',
   './admin.js',
-  './Logo.jpg',
+  './logo.png',
   './hero.png',
   './management.png',
   './tournaments.png'
