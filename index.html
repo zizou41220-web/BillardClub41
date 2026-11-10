@@ -8,11 +8,41 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Portail Club - Billard & Équitation</title>
-  <meta name="theme-color" content="#085569">
   <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#085569">
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="apple-touch-icon" href="logo.png">
-  <link rel="stylesheet" href="style.css?v=2.5.8">
+  <script>
+    // Journalisation en console sans popup intrusif
+    window.onerror = function (msg, url, line, col, error) {
+      console.error("Erreur JS :", msg, url, line);
+      return false;
+    };
+
+    if ('serviceWorker' in navigator) {
+      // En local : désactiver le ServiceWorker pour éviter qu'il serve un vieux app.js en cache
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let reg of registrations) reg.unregister();
+        });
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            for (let name of names) caches.delete(name);
+          });
+        }
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(reg => {
+            reg.update();
+            console.log('ServiceWorker enregistré:', reg.scope);
+          }).catch(err => {
+            console.log('Erreur ServiceWorker:', err);
+          });
+        });
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="style.css?v=2.5.1">
   <link rel="stylesheet" href="tournament_hero.css">
   <style>
     /* Force modal-overlay display flex when active, completely bypassing external CSS cache */
@@ -54,7 +84,15 @@
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;400;600&display=swap"
     rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script type="text/javascript">
+    (function () {
+      // Configuration EmailJS avec la clé publique (à remplacer par la vôtre)
+      // emailjs.init("VOTRE_PUBLIC_KEY");
+    })();
+  </script>
 </head>
 
 <body>
@@ -73,7 +111,7 @@
       <p class="card-subtitle" style="margin-top: 0; margin-bottom: 2rem;">Connectez-vous pour accéder à vos
         services</p>
 
-      <form id="login-form">
+      <form id="login-form" onsubmit="event.preventDefault(); submitLoginForm(event); return false;">
         <div class="input-group id-pseudo-group hidden">
           <label>Pseudo (Nom d'utilisateur)</label>
           <input type="text" id="login-pseudo" placeholder="Ex: BillardMaster">
@@ -91,7 +129,7 @@
               de passe oublié ?</a>
           </div>
         </div>
-        <button type="submit" id="auth-submit-btn" class="btn btn-primary"
+        <button type="button" id="auth-submit-btn" class="btn btn-primary" onclick="submitLoginForm(event)"
           style="width: 100%; justify-content: center; margin-bottom: 1.5rem;">
           Se Connecter <i data-lucide="arrow-right"></i>
         </button>
@@ -192,7 +230,7 @@
           <i data-lucide="home"></i> <span>Accueil</span>
         </li>
         <li data-section="management">
-          <i data-lucide="users"></i> <span>Gestion Club</span>
+          <i data-lucide="coffee"></i> <span>Consommations Club</span>
         </li>
         <li data-section="tournaments">
           <i data-lucide="trophy"></i> <span>Tournois</span>
@@ -210,7 +248,9 @@
           style="width: 100%; justify-content: center; gap: 0.5rem; border-color: rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 0.85rem; padding: 0.5rem 1rem; background: rgba(239, 68, 68, 0.05);">
           <i data-lucide="log-out" style="width: 14px; height: 14px;"></i> Se déconnecter
         </button>
-        <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.75rem; font-weight: 500;">v2.5.7</div>
+        <div style="text-align: center; margin-top: 1rem; font-size: 0.75rem; color: rgba(255, 255, 255, 0.3);">
+          v2.8.6
+        </div>
       </div>
     </nav>
 
@@ -221,8 +261,8 @@
         <span>Accueil</span>
       </div>
       <div class="mobile-nav-item" data-section="management">
-        <i data-lucide="users"></i>
-        <span>Gestion</span>
+        <i data-lucide="coffee"></i>
+        <span>Consommations</span>
       </div>
       <div class="mobile-nav-item" data-section="tournaments">
         <i data-lucide="trophy"></i>
@@ -245,7 +285,8 @@
           <div class="logo-circle-mini">
             <img src="logo.png" alt="BC41" onerror="this.style.display='none'">
           </div>
-          <span class="mobile-title">Billard Club 41</span>
+          <span class="mobile-title">Billard Club 41 <span
+              style="font-size:0.65rem; color:var(--text-muted); font-weight:normal;">v2.8.6</span></span>
         </div>
 
         <div class="user-profile" id="user-profile-menu-trigger">
@@ -280,22 +321,43 @@
             </div>
           </div>
 
-          <div class="dashboard-grid">
-
-
+          <!-- Bouton Edit Admin -->
+          <div id="admin-edit-home-btn-container" style="display: none; text-align: right; margin-top: 10px;">
+            <button class="btn btn-outline" onclick="openHomeMessageModal()">
+              <i data-lucide="edit"></i> Éditer le message d'accueil
+            </button>
           </div>
+
+          <div id="dynamic-home-message-container"
+            style="margin-top: 1.5rem; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.15); border-left: 5px solid #ef4444; padding: 1.25rem; border-radius: 6px; display: none; flex-direction: column; gap: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+            <div style="display: flex; align-items: flex-start; gap: 1rem;">
+              <i data-lucide="alert-circle"
+                style="color: #ef4444; flex-shrink: 0; margin-top: 0.15rem; width: 24px; height: 24px;"></i>
+              <div style="flex-grow: 1;">
+                <strong id="dynamic-home-title"
+                  style="color: #ef4444; font-size: 1.2rem; display: block; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px;">Message
+                  du club</strong>
+                <p id="dynamic-home-text"
+                  style="color: var(--text-main); font-size: 1.1rem; font-weight: 600; margin: 0; line-height: 1.5; white-space: pre-wrap;">
+                </p>
+              </div>
+            </div>
+            <img id="dynamic-home-image" src="" alt="Image associée"
+              style="display: none; max-width: 100%; border-radius: 6px; margin-top: 0.5rem; object-fit: contain; max-height: 400px;">
+          </div>
+
         </section>
 
-        <!-- Section Gestion Club -->
+        <!-- Section Consommations Club -->
         <section id="section-management" class="view">
           <div class="module-header management-hero-header">
             <div class="hero-content">
-              <h2>Gestion Club</h2>
+              <h2>Consommations Club</h2>
               <p class="hero-subtitle">Membres, consommations et services privilèges.</p>
             </div>
             <div class="quick-stats">
               <div class="stat-item">
-                <span class="label">Ardoise Totale</span>
+                <span class="label" id="mem-balance-label">Ardoise Totale</span>
                 <span class="value danger" id="mem-balance">0.00€</span>
               </div>
               <div class="stat-item">
@@ -313,19 +375,57 @@
             </div>
           </div>
 
+          <!-- Bannière Service au Bar par Admin (en lieu et place du membre) -->
+          <div id="serving-member-banner" class="hidden"
+            style="background: #0f172a; border: 2px solid #3b82f6; border-radius: 12px; padding: 1.1rem 1.3rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);">
+            <div style="display: flex; align-items: center; gap: 0.9rem;">
+              <div
+                style="width: 46px; height: 46px; border-radius: 50%; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5); flex-shrink: 0;">
+                <i data-lucide="coffee"></i>
+              </div>
+              <div>
+                <span
+                  style="font-size: 0.8rem; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 3px;">
+                  Mode Service au Bar (Admin)
+                </span>
+                <span
+                  style="font-size: 1.15rem; font-weight: 700; color: #ffffff; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  Vous enregistrez pour :
+                  <strong id="serving-member-name"
+                    style="color: #fbbf24; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.45); padding: 2px 10px; border-radius: 6px; font-weight: 800; font-size: 1.2rem; letter-spacing: 0.3px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
+                  </strong>
+                </span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.6rem; align-items: center;">
+              <button type="button" class="btn btn-outline" onclick="exitServingMemberMode()"
+                style="border-color: #ef4444; color: #ffffff; background: rgba(239, 68, 68, 0.25); display: inline-flex; align-items: center; gap: 6px; padding: 0.55rem 1.1rem; font-weight: 700; border-radius: 8px; cursor: pointer;">
+                <i data-lucide="arrow-left"></i> Revenir à l'Admin
+              </button>
+            </div>
+          </div>
+
           <div class="management-grid">
-            <!-- Colonne Boissons -->
+            <!-- 1er : Consommations Boissons & En-cas -->
             <div class="card drinks-card">
-              <h3><i data-lucide="coffee"></i> Consommations</h3>
-              <p class="card-subtitle">Un clic pour enregistrer votre consommation</p>
-              <div id="drinks-list" class="drink-grid">
+              <h3 style="margin-bottom: 1.25rem;"><i data-lucide="coffee"></i> Boissons & En-cas</h3>
+              <div id="drinks-bar-list" class="drink-grid">
                 <!-- Injecté par JS -->
               </div>
             </div>
 
-            <!-- Colonne Historique -->
+            <!-- 2ème (En dessous) : Autres -->
+            <div class="card billiard-card">
+              <h3 style="margin-bottom: 1.25rem;"><i data-lucide="circle-dot"></i> Autres</h3>
+              <div id="drinks-billiard-list" class="drink-grid">
+                <!-- Injecté par JS -->
+              </div>
+            </div>
+
+            <!-- 3ème (Encore en dessous) : Ardoise en attente -->
             <div class="card history-card">
-              <h3><i data-lucide="receipt"></i> Ardoise en attente</h3>
+              <h3 style="margin-bottom: 1.25rem;"><i data-lucide="receipt"></i> <span
+                  id="management-history-title">Ardoise en attente</span></h3>
               <div class="table-wrapper">
                 <table>
                   <thead>
@@ -333,6 +433,7 @@
                       <th>Date</th>
                       <th>Article</th>
                       <th>Montant dû</th>
+                      <th id="history-admin-action-th" style="text-align: right; display: none;">Action</th>
                     </tr>
                   </thead>
                   <tbody id="history-list">
@@ -341,6 +442,9 @@
                 </table>
               </div>
             </div>
+
+            <!-- Container masqué pour rétrocompatibilité totale -->
+            <div id="drinks-list" style="display: none;"></div>
           </div>
         </section>
 
@@ -478,7 +582,8 @@
                     <div>
                       <label for="regle-condition" class="help" style="margin-bottom: 4px;">Condition de
                         victoire</label>
-                      <select id="regle-condition" class="chakra-select">
+                      <select id="regle-condition" class="chakra-select" required>
+                        <option value="" disabled selected>-- Sélectionnez --</option>
                         <option value="total">Nb total de manches</option>
                         <option value="gagnantes">Manches gagnantes</option>
                       </select>
@@ -582,11 +687,11 @@
 
           <!-- Screens de tournoi -->
           <div id="tournoi-screen" class="tournoi-shell hidden screen-transition">
-            <div class="card">
+            <div class="card glass-card">
               <div class="tournoi-header">
                 <div class="tournoi-heading">
                   <div>
-                    <h2 class="tournoi-title">Tournoi en cours</h2>
+                    <h2 class="tournoi-title neon-text-gold">Tournoi en cours</h2>
                     <p class="tournoi-sub" id="tournoi-meta"></p>
                   </div>
                 </div>
@@ -616,17 +721,10 @@
               </div>
 
               <div id="default-tournoi-layout">
-                <div class="grid-tournoi">
-                  <div class="card" style="padding:12px;">
-                    <h3 class="section-title">Matchs en cours (max 2 billards)</h3>
-                    <div id="matchs-en-cours" class="list-stack"></div>
-
-                    <h3 class="section-title" style="margin-top:14px;">Prochains matchs</h3>
-                    <div id="matchs-attente" class="list-stack"></div>
-                  </div>
-
-                  <div class="card" style="padding:12px;">
-                    <h3 class="section-title">Classement</h3>
+                <div class="dashboard-layout">
+                  <div class="dashboard-main card glass-card" style="padding:16px;">
+                    <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                      CLASSEMENT</h3>
                     <div class="table-scroll">
                       <table>
                         <thead>
@@ -644,23 +742,40 @@
                       </table>
                     </div>
                   </div>
-                </div>
 
-                <h3 class="section-title" style="margin-top:16px;">Tableau des résultats</h3>
-                <div class="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Round</th>
-                        <th>Billard</th>
-                        <th>Match</th>
-                        <th>Statut</th>
-                        <th>Score</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="resultats-body"></tbody>
-                  </table>
+                  <div class="dashboard-side card glass-card" style="padding:16px;">
+                    <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                      MATCHS EN DIRECT (max 2)</h3>
+                    <div id="matchs-en-cours" class="list-stack"></div>
+                  </div>
+
+                  <div class="dashboard-bottom">
+                    <div class="card glass-card" style="padding:16px;">
+                      <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                        MATCHS À VENIR</h3>
+                      <div id="matchs-attente" class="list-stack"></div>
+                    </div>
+
+                    <div class="card glass-card" style="padding:16px; grid-column: span 2;">
+                      <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                        RÉSULTATS RÉCENTS</h3>
+                      <div class="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Round</th>
+                              <th>Billard</th>
+                              <th>Match</th>
+                              <th>Statut</th>
+                              <th>Score</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody id="resultats-body"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -672,11 +787,11 @@
 
           <!-- Sortants -->
           <div id="sortants-screen" class="tournoi-shell hidden screen-transition">
-            <div class="card">
+            <div class="card glass-card">
               <div class="tournoi-header">
                 <div class="tournoi-heading">
                   <div>
-                    <h2 class="tournoi-title">Sortants connus 🎯</h2>
+                    <h2 class="tournoi-title neon-text-gold">Sortants connus 🎯</h2>
                     <p class="tournoi-sub">Le Cartésien est en pause. Configure le tableau final
                       tour par tour.</p>
                   </div>
@@ -731,11 +846,11 @@
 
           <!-- Tableau Final -->
           <div id="tableau-final-screen" class="tournoi-shell hidden screen-transition">
-            <div class="card">
+            <div class="card glass-card">
               <div class="tournoi-header">
                 <div class="tournoi-heading">
                   <div>
-                    <h2 class="tournoi-title">Tableau final 🏆</h2>
+                    <h2 class="tournoi-title neon-text-gold">Tableau final 🏆</h2>
                     <p class="tournoi-sub" id="tableau-final-meta"></p>
                   </div>
                 </div>
@@ -748,30 +863,32 @@
                 </div>
               </div>
 
-              <div class="status-row" id="tableau-final-status-row"></div>
-
-              <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
-                <!-- Colonne Gauche : Arbre du tableau final -->
-                <div style="flex: 1 1 65%; min-width: 300px; max-width: 100%; overflow: hidden;">
-                  <h3 class="section-title">Arbre du tableau final</h3>
-                  <div class="bracket-scroll" style="margin-bottom:14px; overflow-x: auto;">
+              <div class="dashboard-layout">
+                <div class="dashboard-main card glass-card" style="padding:16px;">
+                  <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">ARBRE
+                    DU TABLEAU FINAL</h3>
+                  <div class="bracket-scroll" style="overflow-x: auto;">
                     <div id="tableau-final-bracket" class="bracket-board" style="display: flex; gap: 20px;">
                     </div>
                   </div>
                 </div>
 
-                <!-- Colonne Droite : Matchs et Résultats -->
-                <div style="flex: 1 1 30%; min-width: 320px; display: flex; flex-direction: column; gap: 16px;">
-                  <div class="card" style="padding:12px; margin: 0;">
-                    <h3 class="section-title">Matchs du tableau final en cours</h3>
-                    <div id="tableau-final-matchs-en-cours" class="list-stack"></div>
+                <div class="dashboard-side card glass-card" style="padding:16px;">
+                  <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">MATCHS
+                    EN DIRECT</h3>
+                  <div id="tableau-final-matchs-en-cours" class="list-stack"></div>
+                </div>
 
-                    <h3 class="section-title" style="margin-top:14px;">Prochains matchs</h3>
+                <div class="dashboard-bottom">
+                  <div class="card glass-card" style="padding:16px;">
+                    <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                      MATCHS À VENIR</h3>
                     <div id="tableau-final-matchs-attente" class="list-stack"></div>
                   </div>
 
-                  <div class="card" style="padding:12px; margin: 0;">
-                    <h3 class="section-title">Résultats du tableau final</h3>
+                  <div class="card glass-card" style="padding:16px;">
+                    <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                      RÉSULTATS RÉCENTS</h3>
                     <div class="table-scroll">
                       <table>
                         <thead>
@@ -786,9 +903,16 @@
                         <tbody id="tableau-final-resultats-body"></tbody>
                       </table>
                     </div>
+                  </div>
+
+                  <div class="card glass-card" style="padding:16px;">
+                    <h3 class="section-title" style="font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                      STATUT DU TOURNOI</h3>
+                    <div class="status-row" id="tableau-final-status-row" style="margin:0 0 10px 0;"></div>
                     <p id="tableau-final-gagnant" class="help" style="margin-top:10px;"></p>
                     <button type="button" id="archiver-tournoi-btn" class="btn-main hidden"
-                      style="margin-top:15px; width:100%;">💾 Archiver le tournoi dans les statistiques</button>
+                      style="margin-top:15px; width:100%;">💾 Archiver le tournoi dans les
+                      statistiques</button>
                   </div>
                 </div>
               </div>
@@ -797,10 +921,10 @@
 
           <!-- Dashboard / Statistiques -->
           <div id="dashboard-screen" class="tournoi-shell hidden screen-transition">
-            <div class="card">
+            <div class="card glass-card">
               <div class="tournoi-header">
                 <div class="tournoi-heading">
-                  <h2 class="tournoi-title">Statistiques Annuelles 📊</h2>
+                  <h2 class="tournoi-title neon-text-gold">Statistiques Annuelles 📊</h2>
                   <p class="tournoi-sub">Historique de tous les tournois joués et archivés.</p>
                 </div>
                 <button type="button" id="retour-config-depuis-dashboard" class="btn-alt" style="width:auto;">Retour
@@ -847,7 +971,7 @@
 
               <div id="dept-tirage-section">
                 <div id="dept-roulette-display" class="dept-roulette-display"
-                  style="font-size: 24px; font-weight: bold; margin: 20px 0; color: var(--accent-green); text-shadow: 0 0 15px rgba(6, 182, 212, 0.3);">
+                  style="font-size: 24px; font-weight: bold; margin: 20px 0; color: var(--accent-green); text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);">
                   —</div>
                 <button type="button" id="dept-btn-confirmer-tirage" class="btn-main hidden"
                   style="margin-top:8px; width: 100%; justify-content: center; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600;">✅
@@ -866,13 +990,174 @@
           <div class="module-header" style="flex-direction: column; align-items: flex-start; gap: 1.5rem;">
             <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
               <h2>Administration du Club</h2>
+              <button class="btn btn-main hidden" id="buvette-header-btn" style="display: none !important;"
+                onclick="openBuvetteModal()">
+                <i data-lucide="shopping-cart" style="width: 16px; height: 16px;"></i> Ouvrir le Mode Buvette
+              </button>
             </div>
             <div class="admin-tabs"
               style="display: flex; gap: 1rem; border-bottom: 1px solid var(--border); width: 100%; padding-bottom: 0.5rem; flex-wrap: wrap;">
               <button class="btn-tab active" data-tab="adm-members">Membres</button>
+              <button class="btn-tab" data-tab="adm-caisse">Caisse Bar</button>
               <button class="btn-tab" data-tab="adm-consumptions">Consommations</button>
-              <button class="btn-tab" data-tab="adm-drinks">Boissons</button>
+              <button class="btn-tab" data-tab="adm-drinks">Articles & Stocks</button>
               <button class="btn-tab" data-tab="adm-subs">Abonnements</button>
+              <button class="btn-tab" data-tab="adm-stats">Statistiques</button>
+            </div>
+          </div>
+
+          <!-- Onglet Caisse Bar & Buvette (Admin) -->
+          <div id="adm-caisse" class="admin-pane">
+            <div class="caisse-container">
+              <!-- Colonne 1 : Sélection Client / Membre -->
+              <div class="caisse-col caisse-col-members">
+                <div class="caisse-card-header">
+                  <h3><i data-lucide="users" style="width: 17px; height: 17px; opacity: 0.8;"></i> Sélection Client</h3>
+                </div>
+
+                <!-- Carte Gratuit / Offert (Retrait de stock sans paiement) -->
+                <div class="caisse-member-card caisse-member-free" id="caisse-free-client-btn"
+                  onclick="selectCaisseClient('FREE')">
+                  <div class="caisse-member-avatar free-avatar">
+                    <i data-lucide="package-minus" style="width: 18px; height: 18px;"></i>
+                  </div>
+                  <div class="caisse-member-details">
+                    <div class="caisse-member-name">Sortie de Stock / Offert</div>
+                    <div class="caisse-member-sub">Retrait de stock sans paiement</div>
+                  </div>
+                </div>
+
+                <!-- Carte Vente Directe / Visiteur -->
+                <div class="caisse-member-card caisse-member-direct active" id="caisse-direct-client-btn"
+                  onclick="selectCaisseClient(null)">
+                  <div class="caisse-member-avatar direct-avatar">
+                    <i data-lucide="shopping-bag" style="width: 18px; height: 18px;"></i>
+                  </div>
+                  <div class="caisse-member-details">
+                    <div class="caisse-member-name">Vente Directe / Visiteur</div>
+                    <div class="caisse-member-sub">Encaissement comptoir hors adhérent</div>
+                  </div>
+                </div>
+
+                <!-- Recherche Membre -->
+                <div class="caisse-search-box">
+                  <i data-lucide="search" style="width: 15px; height: 15px; color: var(--text-muted);"></i>
+                  <input type="text" id="caisse-member-search" placeholder="Rechercher un adhérent..."
+                    oninput="filterCaisseMembers()">
+                </div>
+
+                <!-- Liste défilante des membres -->
+                <div class="caisse-members-list" id="caisse-members-list">
+                  <!-- Rempli dynamiquement en JS -->
+                </div>
+              </div>
+
+              <!-- Colonne 2 : Pavé Tactile Produits -->
+              <div class="caisse-col caisse-col-products">
+                <!-- Filtres catégories : UNIQUEMENT Bar / Snack et Autres -->
+                <div class="caisse-cat-tabs" id="caisse-cat-tabs">
+                  <button class="caisse-cat-tab active" onclick="filterCaisseCategory('bar')">
+                    <i data-lucide="coffee" style="width: 15px; height: 15px;"></i> Bar / Snack
+                  </button>
+                  <button class="caisse-cat-tab" onclick="filterCaisseCategory('billard')">
+                    <i data-lucide="circle-dot" style="width: 15px; height: 15px;"></i> Autres
+                  </button>
+                </div>
+
+                <!-- Grille des tuiles de produits -->
+                <div class="caisse-products-grid" id="caisse-products-grid">
+                  <!-- Rempli dynamiquement en JS -->
+                </div>
+              </div>
+
+              <!-- Colonne 3 : Ticket de Commande & Encaissement -->
+              <div class="caisse-col caisse-col-ticket">
+                <div class="caisse-ticket-header">
+                  <div>
+                    <h3 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:0.45rem;">
+                      <i data-lucide="receipt" style="width: 17px; height: 17px; opacity: 0.8;"></i> Ticket en cours
+                    </h3>
+                    <div id="caisse-ticket-client-name"
+                      style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
+                      Client : <strong style="color:var(--text-main);">Vente Directe</strong>
+                    </div>
+                  </div>
+                  <button class="caisse-btn-action-sm" onclick="resetCaisseCart()" title="Vider le panier">
+                    <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Réinitialiser
+                  </button>
+                </div>
+
+                <!-- Solde du membre sélectionné avec boutons Créditer / Encaisser -->
+                <div id="caisse-member-solde-box" class="caisse-solde-box hidden">
+                  <div
+                    style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <div>
+                      <span
+                        style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted);">Solde
+                        du compte</span>
+                      <div id="caisse-current-solde" style="font-weight:700; font-size:1.05rem; margin-top:1px;">0,00 €
+                      </div>
+                    </div>
+                    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                      <button id="caisse-btn-encaisser-ardoise" class="caisse-btn-action-sm caisse-btn-settle hidden"
+                        onclick="clearCaisseMemberArdoise()" title="Solder l'ardoise en cours">
+                        <i data-lucide="check" style="width:13px; height:13px;"></i> Solder
+                      </button>
+                      <button class="caisse-btn-action-sm caisse-btn-credit" onclick="openCaisseRechargeModal()">
+                        <i data-lucide="plus" style="width:13px; height:13px;"></i> Créditer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Encadré Retrait de stock sans paiement (Gratuit) avec Commentaire obligatoire -->
+                <div id="caisse-free-box" class="caisse-solde-box caisse-free-notice hidden">
+                  <div class="caisse-free-notice-title">
+                    <i data-lucide="package-minus" style="width: 14px; height: 14px;"></i> Retrait de stock sans
+                    paiement (0,00 €)
+                  </div>
+                  <input type="text" id="caisse-free-comment" class="caisse-free-input"
+                    placeholder="Motif obligatoire (ex : Tournoi, Réunion, Bénévoles...)">
+                </div>
+
+                <!-- Lignes du ticket -->
+                <div class="caisse-ticket-items" id="caisse-ticket-items">
+                  <div class="caisse-empty-ticket">
+                    <i data-lucide="shopping-bag" style="width:32px; height:32px; opacity:0.25; margin-bottom:8px;"></i>
+                    <div>Aucun article sélectionné</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">Sélectionnez un article
+                      dans la liste</div>
+                  </div>
+                </div>
+
+                <!-- Résumé Total & Nouveau Solde -->
+                <div class="caisse-ticket-footer">
+                  <div class="caisse-total-row">
+                    <span style="font-size:0.95rem; font-weight:500; color:var(--text-muted);">Total TTC</span>
+                    <span id="caisse-total-amount"
+                      style="font-size:1.4rem; font-weight:700; color:var(--text-main);">0,00 €</span>
+                  </div>
+                  <div id="caisse-projected-solde-row" class="caisse-projected-solde hidden">
+                    <span style="color:var(--text-muted);">Solde après opération :</span>
+                    <span id="caisse-projected-solde" style="font-weight:600;">--</span>
+                  </div>
+
+                  <!-- Boutons d'encaissement express -->
+                  <div class="caisse-actions">
+                    <button id="caisse-btn-ardoise" class="caisse-btn-primary" onclick="submitCaisseOrder('auto')">
+                      <i data-lucide="check" style="width: 16px; height: 16px;"></i> Enregistrer sur le compte
+                    </button>
+                    <div id="caisse-secondary-pay-btns" class="caisse-secondary-grid">
+                      <button class="caisse-btn-secondary" onclick="submitCaisseOrder('cash')">
+                        <i data-lucide="banknote" style="width: 15px; height: 15px;"></i> Espèces
+                      </button>
+                      <button class="caisse-btn-secondary" onclick="submitCaisseOrder('card')">
+                        <i data-lucide="credit-card" style="width: 15px; height: 15px;"></i> Carte / Direct
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -898,7 +1183,7 @@
                     <th>Nom</th>
                     <th>Email</th>
                     <th>Statut</th>
-                    <th>Approuvé</th>
+                    <th style="text-align: center;">Accès Validé</th>
                     <th>Abonnement</th>
                     <th>Fin adhésion</th>
                     <th>Solde Bar</th>
@@ -933,9 +1218,8 @@
                   <tr>
                     <th>Membre</th>
                     <th>Email</th>
-                    <th>Abonnement</th>
-                    <th>Ardoise Actuelle</th>
-                    <th>Actions</th>
+                    <th>Solde / Ardoise</th>
+                    <th style="text-align: right;">Historique & Détails</th>
                   </tr>
                 </thead>
                 <tbody id="admin-consumption-list">
@@ -945,22 +1229,31 @@
             </div>
           </div>
 
-          <!-- Drinks Section -->
+          <!-- Drinks & Stocks Unified Section -->
           <div id="adm-drinks" class="admin-pane card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-              <h3><i data-lucide="coffee"></i> Gestion de la Carte</h3>
-              <button class="btn-main" id="add-drink-btn"
-                style="display: flex; align-items: center; gap: 0.5rem; padding: 6px 12px; border-radius: 8px; border: none;"><i
-                  data-lucide="plus" style="width:16px;"></i> Ajouter</button>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+              <h3><i data-lucide="package"></i> Gestion des Articles, Boissons & Stocks</h3>
+              <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <button class="btn-alt" id="export-stock-csv-btn"
+                  style="display: flex; align-items: center; gap: 0.5rem; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); width: auto;">
+                  <i data-lucide="download" style="width:16px; height:16px;"></i> Exporter CSV
+                </button>
+                <button class="btn-main" id="add-drink-btn"
+                  style="display: flex; align-items: center; gap: 0.5rem; padding: 7px 14px; border-radius: 8px; border: none; width: auto;">
+                  <i data-lucide="plus" style="width:16px; height:16px;"></i> Ajouter un article
+                </button>
+              </div>
             </div>
             <div class="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>Icône</th>
-                    <th>Nom</th>
+                    <th>Visuel</th>
+                    <th>Article</th>
                     <th>Prix</th>
-                    <th>Actions</th>
+                    <th>Stock Actuel</th>
+                    <th style="text-align: right;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="admin-drink-list">
@@ -969,7 +1262,6 @@
               </table>
             </div>
           </div>
-
 
 
           <!-- Abonnements Section -->
@@ -994,6 +1286,49 @@
                   <!-- Injecté par JS -->
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Stats Section -->
+          <div id="adm-stats" class="admin-pane card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+              <div style="display: flex; align-items: center; gap: 1rem;">
+                <h3><i data-lucide="bar-chart-2"></i> Évolution des Ventes</h3>
+                <select id="season-selector" class="chakra-select"
+                  style="width: auto; padding: 4px 10px; font-size: 0.9rem;">
+                  <!-- Options generated by JS -->
+                </select>
+              </div>
+              <div class="stat-summary" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div
+                  style="background: rgba(16, 185, 129, 0.1); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                  <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Ventes totales</span>
+                  <span id="stat-total-sales"
+                    style="font-size: 1.2rem; font-weight: bold; color: var(--accent-green);">0,00 €</span>
+                </div>
+                <div
+                  style="background: rgba(239, 68, 68, 0.1); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                  <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Dont Ardoises</span>
+                  <span id="stat-total-unpaid" style="font-size: 1.2rem; font-weight: bold; color: #ef4444;">0,00
+                    €</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-container" style="position: relative; height: 40vh; width: 100%;">
+              <canvas id="salesChart"></canvas>
+            </div>
+
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; margin-top: 2rem;">
+              <h3><i data-lucide="bar-chart-2"></i> Consommation Mensuelle par Article</h3>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start;">
+              <div class="chart-container"
+                style="position: relative; height: 40vh; width: 100%; min-width: 300px; display: flex; justify-content: center;">
+                <canvas id="itemsMonthlyChart"></canvas>
+              </div>
             </div>
           </div>
         </section>
@@ -1022,6 +1357,11 @@
               <label>Date de fin (Validité)</label>
               <input type="date" id="manual-mem-end-date" class="custom-select">
             </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 1rem;">
+              <input type="checkbox" id="manual-mem-can-manage-stock" style="width: auto;">
+              <label for="manual-mem-can-manage-stock" style="font-weight: 600; cursor: pointer; margin: 0;">Droit de
+                Gestionnaire de stocks</label>
+            </div>
             <div class="input-group" style="margin-top: 1rem;">
               <label>Photo de profil (Facultatif)</label>
               <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1045,6 +1385,45 @@
           </div>
         </div>
 
+        <!-- Modal: Edition du Message d'Accueil -->
+        <div id="home-message-modal" class="modal hidden">
+          <div class="modal-content card" style="max-width: 500px; width: 100%; border: 1px solid var(--border);">
+            <h3>Modifier le message d'accueil</h3>
+
+            <div class="input-group" style="margin-top: 1rem;">
+              <label>Titre du message</label>
+              <input type="text" id="hm-title" placeholder="Ex: Rappel de gestion">
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+              <label>Texte du message</label>
+              <textarea id="hm-text" rows="4" placeholder="Votre message ici..."
+                style="width: 100%; background: var(--bg-deep); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; padding: 10px;"></textarea>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+              <label>Image (Optionnelle)</label>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" id="hm-image-url" placeholder="URL ou télécharger" readonly
+                  style="flex-grow:1; opacity: 0.7;">
+                <button class="btn btn-outline" style="padding: 0 12px; border-radius: 8px; height: 40px;"
+                  onclick="document.getElementById('hm-image-file').click()">
+                  <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
+                </button>
+              </div>
+              <input type="file" id="hm-image-file" accept="image/*" style="display: none;"
+                onchange="document.getElementById('hm-image-url').value = this.files[0] ? this.files[0].name : ''">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+              <button class="btn-alt"
+                onclick="document.getElementById('home-message-modal').classList.add('hidden')">Annuler</button>
+              <button class="btn-main" id="save-home-message-btn"
+                style="border:none; padding: 8px 16px; border-radius:8px;">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+
         <div id="drink-modal" class="modal hidden">
           <div class="modal-content card" style="max-width: 400px; width: 100%; border: 1px solid var(--border);">
             <h3 id="drink-modal-title">Ajouter une boisson</h3>
@@ -1055,6 +1434,32 @@
             <div class="input-group">
               <label>Prix (€)</label>
               <input type="number" step="0.5" id="drink-price">
+            </div>
+            <div class="input-group">
+              <label>Catégorie</label>
+              <select id="drink-category"
+                style="width: 100%; padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text-main); font-weight: 500;">
+                <option value="bar">🥤 Boissons & En-cas (Bar / Friandises)</option>
+                <option value="billard">🎱 Autres (Matériel, Consommables...)</option>
+              </select>
+            </div>
+            <div class="input-group" style="margin-bottom: 0.75rem;">
+              <label
+                style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; padding: 0.65rem 0.9rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); margin-bottom: 0;">
+                <input type="checkbox" id="drink-manage-stock" checked onchange="toggleDrinkStockFields(this.checked)"
+                  style="width: 18px; height: 18px; accent-color: var(--accent-green); cursor: pointer;">
+                <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Tenir compte du stock</span>
+              </label>
+            </div>
+            <div id="drink-stock-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+              <div class="input-group" style="margin-bottom: 0;">
+                <label>Stock Actuel</label>
+                <input type="number" id="drink-stock" value="0">
+              </div>
+              <div class="input-group" style="margin-bottom: 0;">
+                <label>Seuil d'alerte</label>
+                <input type="number" id="drink-alert-threshold" value="0" min="0">
+              </div>
             </div>
             <div class="input-group">
               <label>Nom de l'icône Lucide (ex: coffee, beer, wine)</label>
@@ -1109,6 +1514,38 @@
           </div>
         </div>
 
+        <!-- Modal de Stock -->
+        <div id="stock-modal" class="modal hidden">
+          <div class="modal-content card" style="max-width: 400px; width: 100%; border: 1px solid var(--border);">
+            <h3 id="stock-modal-title">Gérer le stock</h3>
+            <p id="stock-drink-name" style="font-weight: bold; margin-bottom: 1rem; color: var(--accent-green);">Boisson
+            </p>
+
+            <div
+              style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+              <button type="button" class="btn-tab active" id="tab-add-stock"
+                style="padding: 0.5rem; font-size: 0.9rem;">Réapprovisionner</button>
+              <button type="button" class="btn-tab" id="tab-set-stock"
+                style="padding: 0.5rem; font-size: 0.9rem;">Inventaire</button>
+            </div>
+
+            <div class="input-group">
+              <label id="stock-input-label">Quantité à ajouter</label>
+              <input type="number" id="stock-input-value" value="0">
+            </div>
+
+            <input type="hidden" id="stock-drink-id">
+            <input type="hidden" id="stock-action-type" value="add">
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+              <button class="btn-alt"
+                onclick="document.getElementById('stock-modal').classList.add('hidden')">Annuler</button>
+              <button class="btn-main" id="save-stock-btn"
+                style="border:none; padding: 8px 16px; border-radius:8px;">Valider</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Modal Historique de Consommations détaillé -->
         <div id="consumption-detail-modal" class="modal hidden">
           <div class="modal-content card"
@@ -1138,6 +1575,7 @@
                         <th>Date</th>
                         <th>Article</th>
                         <th>Prix</th>
+                        <th style="text-align: right;">Action</th>
                       </tr>
                     </thead>
                     <tbody id="detail-unpaid-list">
@@ -1151,8 +1589,8 @@
               <div class="consumption-col card"
                 style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border); padding: 1rem;">
                 <h4
-                  style="margin-top: 0; color: #0891b2; display: flex; align-items: center; gap: 0.5rem; font-size: 1rem;">
-                  <span style="width: 8px; height: 8px; background: #0891b2; border-radius: 50%;"></span>
+                  style="margin-top: 0; color: #22c55e; display: flex; align-items: center; gap: 0.5rem; font-size: 1rem;">
+                  <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></span>
                   Consommations réglées
                 </h4>
                 <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
@@ -1162,6 +1600,7 @@
                         <th>Date</th>
                         <th>Article</th>
                         <th>Prix</th>
+                        <th style="text-align: right;">Action</th>
                       </tr>
                     </thead>
                     <tbody id="detail-paid-list">
@@ -1181,37 +1620,121 @@
                 <button class="btn-alt"
                   onclick="document.getElementById('consumption-detail-modal').classList.add('hidden')">Fermer</button>
                 <button class="btn-main" id="btn-collect-tab"
-                  style="background: #0891b2; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: white; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);"><i
+                  style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: white; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);"><i
                     data-lucide="check-circle" style="width:16px;"></i> Encaisser l'ardoise</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Écran d'interception bloquant si compte non validé -->
-        <div id="section-unapproved-interception" class="view"
-          style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 8, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 2rem;">
-          <div class="card"
-            style="max-width: 480px; width: 100%; text-align: center; border: 1px solid rgba(239, 68, 68, 0.3); padding: 3rem 2rem; box-shadow: 0 0 50px rgba(239, 68, 68, 0.15); display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+        <!-- Modal Rectification d'une Consommation (Admin) -->
+        <div id="edit-consumption-modal" class="modal-overlay hidden">
+          <div class="modal-content card"
+            style="max-width: 520px; width: 100%; border: 1px solid var(--border); padding: 1.5rem; background: var(--panel); box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
             <div
-              style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
-              <i data-lucide="alert-triangle" style="width: 32px; height: 32px;"></i>
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+              <h3 style="margin: 0; display:flex; align-items:center; gap:0.5rem; font-size:1.15rem; color:white;">
+                <i data-lucide="edit-3" style="color:var(--accent-gold); width:20px; height:20px;"></i> Corriger une
+                consommation
+              </h3>
+              <button type="button" class="btn-close-modal" onclick="closeEditConsumptionModal()"
+                style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; line-height: 1;">✕</button>
             </div>
-            <h2 style="font-size: 1.75rem; color: white; margin: 0;">Accès Limité</h2>
-            <h4 style="color: #ef4444; font-size: 1.1rem; margin: 0; font-weight: 600;">En attente de validation</h4>
-            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin: 0 0 1rem 0;">
-              Votre compte est actuellement en attente de validation par un administrateur du club.<br>
-              Veuillez contacter un responsable pour faire valider votre accès.
-            </p>
 
-            <button id="btn-logout-unapproved" class="btn btn-outline"
-              style="border-color: rgba(239, 68, 68, 0.3); color: #ef4444; width: 100%; justify-content: center; gap: 0.5rem; background: rgba(239, 68, 68, 0.05); padding: 0.8rem; font-weight: 600; border-radius: 10px;">
-              <i data-lucide="log-out" style="width: 16px; height: 16px;"></i> Se déconnecter
-            </button>
+            <form id="edit-consumption-form" onsubmit="event.preventDefault(); submitEditConsumption();">
+              <input type="hidden" id="edit-cons-id">
+              <input type="hidden" id="edit-cons-member-id">
+
+              <!-- Info membre & Date originale -->
+              <div
+                style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Membre</span>
+                  <strong id="edit-cons-member-name" style="color: white; font-size: 0.95rem;">-</strong>
+                </div>
+                <div style="text-align: right;">
+                  <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Date de saisie</span>
+                  <span id="edit-cons-date" style="font-size: 0.85rem; color: var(--text-muted);">-</span>
+                </div>
+              </div>
+
+              <!-- Article / Boisson -->
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="edit-cons-drink-select"
+                  style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.85rem;">Article / Boisson
+                  :</label>
+                <select id="edit-cons-drink-select" class="form-control"
+                  style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white;"
+                  required>
+                  <!-- Peuplé par JS -->
+                </select>
+              </div>
+
+              <!-- Quantité et Prix unitaire -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                  <label for="edit-cons-qty"
+                    style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.85rem;">Quantité :</label>
+                  <input type="number" id="edit-cons-qty" min="1" max="100" class="form-control"
+                    style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white;"
+                    required>
+                </div>
+                <div class="form-group">
+                  <label for="edit-cons-price"
+                    style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.85rem;">Prix unitaire (€)
+                    :</label>
+                  <input type="number" id="edit-cons-price" step="0.10" min="0" class="form-control"
+                    style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white;"
+                    required>
+                </div>
+              </div>
+
+              <!-- Montant total calculé -->
+              <div
+                style="background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.9rem; color: #93c5fd;">Nouveau montant dû :</span>
+                <strong id="edit-cons-total" style="font-size: 1.15rem; color: #60a5fa;">0.00 €</strong>
+              </div>
+
+              <!-- Statut & Audit historique -->
+              <div id="edit-cons-audit-info"
+                style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4;">
+              </div>
+
+              <!-- MOTIF OBLIGATOIRE -->
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="edit-cons-reason"
+                  style="display:flex; justify-content:space-between; margin-bottom:0.4rem; font-weight:600; font-size:0.85rem;">
+                  <span>Motif de la rectification <span style="color:#ef4444;">*</span></span>
+                  <span style="font-size:0.75rem; color:#ef4444; font-weight:normal;">(Champ obligatoire)</span>
+                </label>
+                <textarea id="edit-cons-reason" rows="3" required
+                  placeholder="Ex : Erreur de saisie par le membre (a pris un Café au lieu d'un Soda), rectification quantité..."
+                  style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: white; resize: vertical;"></textarea>
+              </div>
+
+              <!-- Boutons d'action -->
+              <div
+                style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" id="btn-delete-cons"
+                  style="border-color: #ef4444; color: #ef4444; padding: 8px 12px; font-size: 0.85rem;"
+                  onclick="deleteCurrentConsumption()">
+                  <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Supprimer la déclaration
+                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button type="button" class="btn-alt" onclick="closeEditConsumptionModal()"
+                    style="padding: 8px 14px;">Annuler</button>
+                  <button type="submit" class="btn-main"
+                    style="padding: 8px 16px; background: #2563eb; border: none; font-weight: 600; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i> Enregistrer
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
 
-        <!-- Écran d'interception bloquant si abonnement expiré -->
+        <!-- Écran d'interception bloquant si compte non validé -->
         <div id="section-expired-interception" class="view"
           style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 8, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 2rem;">
           <div class="card"
@@ -1221,18 +1744,12 @@
               <i data-lucide="alert-triangle" style="width: 32px; height: 32px;"></i>
             </div>
             <h2 style="font-size: 1.75rem; color: white; margin: 0;">Accès Limité</h2>
-            <h4 style="color: #ef4444; font-size: 1.1rem; margin: 0; font-weight: 600;" id="expired-sub-name">Abonnement
-              Expiré</h4>
+            <h4 style="color: #ef4444; font-size: 1.1rem; margin: 0; font-weight: 600;" id="expired-sub-name">En attente
+              de validation</h4>
             <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin: 0 0 1rem 0;">
-              Votre abonnement s'est terminé le <strong id="expired-sub-date" style="color: white;">-</strong>.<br>
-              Pour continuer à accéder au club, vous pouvez renouveler votre adhésion ci-dessous. Le
-              montant sera ajouté à votre ardoise.
+              Votre compte est actuellement en attente de validation par un administrateur du club.<br>
+              Veuillez contacter un responsable pour faire valider votre accès.
             </p>
-
-            <div id="expired-memberships-list"
-              style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; margin-bottom: 1rem;">
-              <!-- Injecté par le JS -->
-            </div>
 
             <button id="btn-logout-expired" class="btn btn-outline"
               style="border-color: rgba(239, 68, 68, 0.3); color: #ef4444; width: 100%; justify-content: center; gap: 0.5rem; background: rgba(239, 68, 68, 0.05); padding: 0.8rem; font-weight: 600; border-radius: 10px;">
@@ -1321,6 +1838,166 @@
 
 
   <!-- Modale de Confirmation de Commande de Boisson -->
+  <!-- Modal Buvette -->
+  <div id="buvette-modal" class="modal-overlay hidden">
+    <div class="modal-content"
+      style="max-width: 600px; width: 100%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;" id="buvette-modal-title"><i data-lucide="shopping-cart"></i> Mode Bar & Buvette</h3>
+        <button onclick="closeBuvetteModal()" class="btn-close"
+          style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i
+            data-lucide="x"></i></button>
+      </div>
+
+      <!-- Sélecteur Client : Vente externe ou Membre du Club -->
+      <div
+        style="background: rgba(255, 255, 255, 0.05); padding: 0.85rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.1);">
+        <label
+          style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">
+          <i data-lucide="user-check" style="width: 14px; height: 14px; vertical-align: middle;"></i> Servir pour :
+        </label>
+        <select id="buvette-member-select" onchange="onBuvetteMemberChanged()"
+          style="width: 100%; padding: 0.6rem; border-radius: 6px; background: #0f172a; border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 0.95rem;">
+          <option value="">🛒 Vente Externe / Buvette (Recette générale)</option>
+          <!-- Injecté dynamiquement par JS -->
+        </select>
+
+        <div id="buvette-member-info" class="hidden"
+          style="margin-top: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.06);">
+          <span>Solde actuel du membre :</span>
+          <span id="buvette-member-solde" style="font-weight: 700;">0.00 €</span>
+        </div>
+
+        <div id="buvette-payment-type-group" class="hidden"
+          style="margin-top: 0.6rem; display: flex; gap: 1rem; font-size: 0.85rem; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="radio" name="buvette-payment-mode" value="auto" checked>
+            <span>💳 Déduire du crédit / Mettre sur ardoise</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="radio" name="buvette-payment-mode" value="paid_now">
+            <span>💵 Encaissé en direct (Espèces / CB)</span>
+          </label>
+        </div>
+      </div>
+      <div class="table-scroll" style="flex: 1; overflow-y: auto; margin-bottom: 1rem;">
+        <table style="width: 100%;">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Boisson</th>
+              <th style="width: 70px;">Prix</th>
+              <th style="width: 120px; text-align: center;">Quantité</th>
+              <th style="width: 80px; text-align: center;">Gratuit</th>
+            </tr>
+          </thead>
+          <tbody id="buvette-drinks-list">
+            <!-- Injecté par JS -->
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-bottom: 1rem; width: 100%; box-sizing: border-box;">
+        <textarea id="buvette-comment" placeholder="Commentaire obligatoire (ex: Soirée, Tournoi...)"
+          style="display: block; width: 100%; box-sizing: border-box; min-height: 80px; padding: 1rem; resize: vertical; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--accent-orange); font-size: 1.05rem; color: white;"></textarea>
+      </div>
+      <div
+        style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <span style="font-size: 1.2rem; font-weight: 600;">Total :</span>
+        <span id="buvette-total" style="font-size: 1.5rem; font-weight: 700; color: var(--accent-orange);">0.00 €</span>
+      </div>
+      <button id="buvette-validate-btn" class="btn btn-main" style="width: 100%; padding: 1rem; font-size: 1.1rem;"
+        onclick="validateBuvetteOrder()">
+        <i data-lucide="check-circle"></i> Valider les consommations
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Rechargement de Crédit Membre -->
+  <div id="credit-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 480px; width: 100%;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem;">
+        <div>
+          <h3 id="credit-modal-title"
+            style="margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem;">
+            <i data-lucide="wallet" style="color: #22c55e;"></i> Créditer un compte
+          </h3>
+          <span id="credit-modal-member-name"
+            style="color: var(--accent-gold); font-size: 0.95rem; font-weight: 600; display: block; margin-top: 4px;"></span>
+        </div>
+        <button onclick="closeModal('credit-modal')" class="btn-close"
+          style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i
+            data-lucide="x"></i></button>
+      </div>
+
+      <p class="modal-description" id="credit-modal-desc">Ajouter de l'argent d'avance pour le membre.</p>
+
+      <div
+        style="background: rgba(255, 255, 255, 0.05); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <span style="font-size: 0.9rem; color: var(--text-muted);">Solde actuel :</span>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="credit-modal-current-balance" style="font-size: 1.1rem; font-weight: 700;">0.00 €</span>
+          <button type="button" id="btn-reset-credit-zero" class="btn btn-outline"
+            style="border-color: #ef4444; color: #fca5a5; padding: 3px 8px; font-size: 0.75rem; display: none; cursor: pointer;"
+            onclick="resetMemberCreditToZero()" title="Remettre le crédit d'avance à 0 €">
+            <i data-lucide="rotate-ccw" style="width: 12px; height: 12px; vertical-align: middle;"></i> Remettre à 0 €
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-muted);">Montant à
+          créditer (€) *</label>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="number" id="credit-amount-input" step="0.5" min="0.5" placeholder="Ex: 20.00" required
+            style="flex: 1; padding: 0.7rem; font-size: 1.2rem; font-weight: 700; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+          <span style="font-size: 1.2rem; font-weight: 700; color: #22c55e;">€</span>
+        </div>
+        <!-- Raccourcis de montants rapides -->
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button type="button" class="btn-alt" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="setCreditQuickAmount(10)">+10 €</button>
+          <button type="button" class="btn-alt" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="setCreditQuickAmount(20)">+20 €</button>
+          <button type="button" class="btn-alt" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="setCreditQuickAmount(30)">+30 €</button>
+          <button type="button" class="btn-alt" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="setCreditQuickAmount(50)">+50 €</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-muted);">Moyen de
+          règlement *</label>
+        <select id="credit-payment-method"
+          style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+          <option value="Espèces" selected>💵 Espèces</option>
+          <option value="Chèque">📝 Chèque</option>
+          <option value="Carte Bancaire">💳 Carte Bancaire</option>
+          <option value="Virement">🏦 Virement</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-muted);">Commentaire
+          / Référence (optionnel)</label>
+        <input type="text" id="credit-note-input" placeholder="Ex: Chèque n°12345, remis au bar..."
+          style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+      </div>
+
+      <div id="credit-admin-signature"
+        style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; font-style: italic;">
+        <!-- Injecté : Enregistré par : [Admin] -->
+      </div>
+
+      <div style="display: flex; gap: 0.8rem; justify-content: flex-end;">
+        <button type="button" class="btn-alt" onclick="closeModal('credit-modal')">Annuler</button>
+        <button type="button" id="btn-submit-credit" class="btn-main"
+          style="background: #22c55e; color: #ffffff; border: none; padding: 0.65rem 1.3rem; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);">
+          <i data-lucide="check"></i> Confirmer le rechargement
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="drink-order-confirm-modal" class="modal-overlay hidden">
     <div class="modal-card drink-confirm-card">
       <h3 class="modal-title">Confirmer la commande</h3>
@@ -1331,7 +2008,6 @@
         <div class="drink-confirm-details">
           <span id="drink-confirm-name" class="drink-confirm-title">Boisson</span>
           <span id="drink-confirm-price" class="drink-confirm-price">0.00€</span>
-          <span id="drink-confirm-stock" class="drink-confirm-stock">Stock restant : --</span>
         </div>
       </div>
 
@@ -1387,24 +2063,11 @@
   <script async defer crossorigin="anonymous"
     src="https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v17.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="tournaments.js?v=2.5.7" defer></script>
-  <script src="app.js?v=2.5.7" defer></script>
+  <script src="tournaments.js?v=2.4.8" defer></script>
+  <script src="app.js?v=2.9.33" defer></script>
   <script>
     // Initialisation des icônes Lucide
     lucide.createIcons();
-  </script>
-
-  <!-- Script pour enregistrer le Service Worker (PWA) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').then(registration => {
-          console.log('ServiceWorker enregistré avec succès. Portée: ', registration.scope);
-        }, err => {
-          console.log('L\\'enregistrement du ServiceWorker a échoué: ', err);
-        });
-      });
-    }
   </script>
 </body>
 
