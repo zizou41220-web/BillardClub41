@@ -232,10 +232,10 @@
         <li data-section="management">
           <i data-lucide="coffee"></i> <span>Consommations Club</span>
         </li>
-        <li data-section="tournaments">
+        <li data-section="tournaments" style="display: none;">
           <i data-lucide="trophy"></i> <span>Tournois</span>
         </li>
-        <li data-section="admin">
+        <li data-section="admin" style="display: none;">
           <i data-lucide="shield-check"></i> <span>Administration</span>
         </li>
       </ul>
@@ -264,11 +264,11 @@
         <i data-lucide="coffee"></i>
         <span>Consommations</span>
       </div>
-      <div class="mobile-nav-item" data-section="tournaments">
+      <div class="mobile-nav-item" data-section="tournaments" style="display: none;">
         <i data-lucide="trophy"></i>
         <span>Tournois</span>
       </div>
-      <div class="mobile-nav-item" data-section="admin">
+      <div class="mobile-nav-item" data-section="admin" style="display: none;">
         <i data-lucide="shield-check"></i>
         <span>Admin</span>
       </div>
@@ -1003,8 +1003,6 @@
               <button class="btn-tab" data-tab="adm-drinks">Articles & Stocks</button>
               <button class="btn-tab" data-tab="adm-subs">Abonnements</button>
               <button class="btn-tab" data-tab="adm-stats">Statistiques</button>
-              <button class="btn-tab" data-tab="adm-sumup"><i data-lucide="credit-card"
-                  style="width:14px; height:14px; vertical-align:-2px; margin-right:4px;"></i>SumUp</button>
             </div>
           </div>
 
@@ -1084,9 +1082,14 @@
                       Client : <strong style="color:var(--text-main);">Vente Directe</strong>
                     </div>
                   </div>
-                  <button class="caisse-btn-action-sm" onclick="resetCaisseCart()" title="Vider le panier">
-                    <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Réinitialiser
-                  </button>
+                  <div style="display:flex; gap:0.4rem; align-items:center;">
+                    <button class="caisse-btn-action-sm" onclick="openSumUpConfigModal()" title="Configurer le boîtier CB SumUp Solo (Caisse Bar uniquement)" style="border-color:rgba(56, 189, 248, 0.4); color:#38bdf8;">
+                      <i data-lucide="settings" style="width: 13px; height: 13px;"></i> SumUp
+                    </button>
+                    <button class="caisse-btn-action-sm" onclick="resetCaisseCart()" title="Vider le panier">
+                      <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Réinitialiser
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Solde du membre sélectionné avec boutons Créditer / Encaisser -->
@@ -1339,31 +1342,35 @@
               </div>
             </div>
           </div>
+        </section>
 
-          <!-- SumUp Integration Section -->
-          <div id="adm-sumup" class="admin-pane card">
+        <!-- Modal Configuration SumUp Solo (Accessible uniquement depuis Caisse Bar Admin) -->
+        <div id="sumup-config-modal" class="modal-overlay hidden">
+          <div class="modal-content card" style="max-width: 720px; width: 100%; border: 1px solid var(--border); padding: 1.5rem; background: #0f172a; max-height: 90vh; overflow-y: auto;">
             <div
-              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; flex-wrap: wrap; gap: 0.75rem;">
               <div>
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem;">
-                  <i data-lucide="credit-card" style="color: #38bdf8;"></i> Liaison Terminal CB SumUp Solo
+                  <i data-lucide="credit-card" style="color: #38bdf8;"></i> Configuration SumUp Solo (Caisse Bar)
                 </h3>
-                <p style="margin: 0.35rem 0 0 0; color: var(--text-muted); font-size: 0.9rem;">
-                  Envoyez directement le montant des consommations ou de l'ardoise sur votre boîtier <strong>SumUp
-                    Solo</strong> : dès que la carte est acceptée, l'ardoise est automatiquement effacée dans
-                  l'application.
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-muted); font-size: 0.85rem;">
+                  Réservé exclusivement aux encaissements CB depuis la Caisse Bar (Admin).
                 </p>
               </div>
-              <span id="sumup-status-pill" class="badge"
-                style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; padding: 6px 12px; font-size: 0.85rem;">
-                Non configuré
-              </span>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span id="sumup-status-pill" class="badge"
+                  style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; padding: 5px 10px; font-size: 0.8rem;">
+                  Non configuré
+                </span>
+                <button type="button" onclick="document.getElementById('sumup-config-modal').classList.add('hidden')"
+                  style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem; line-height: 1;">✕</button>
+              </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.25rem;">
               <!-- Bloc 1 : Clé API & Activation -->
               <div
-                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
+                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.15rem;">
                 <h4
                   style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
                   <i data-lucide="key" style="width: 18px; height: 18px; color: var(--accent-gold);"></i> 1. Compte
@@ -1375,7 +1382,7 @@
                     style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); margin-bottom: 0;">
                     <input type="checkbox" id="sumup-enabled-cb"
                       style="width: 18px; height: 18px; accent-color: #38bdf8; cursor: pointer;">
-                    <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Activer l'envoi
+                    <span style="font-weight: 600; color: var(--text-main); font-size: 0.88rem;">Activer l'envoi
                       automatique au boîtier SumUp Solo</span>
                   </label>
                 </div>
@@ -1383,7 +1390,7 @@
                 <div class="input-group">
                   <label>Clé API secrète SumUp (<code>sup_sk_...</code>)</label>
                   <input type="password" id="sumup-api-key" placeholder="sup_sk_..." autocomplete="off">
-                  <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 4px;">
+                  <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
                     Sur <a href="https://me.sumup.com/fr-fr/settings/api-keys" target="_blank"
                       style="color: #38bdf8;">me.sumup.com &rarr; Paramètres &rarr; Pour les développeurs &rarr; Clés
                       API</a>
@@ -1412,7 +1419,7 @@
 
               <!-- Bloc 2 : Choix & Association du boîtier SumUp Solo -->
               <div
-                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
+                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.15rem;">
                 <h4
                   style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
                   <i data-lucide="smartphone" style="width: 18px; height: 18px; color: var(--accent-green);"></i> 2.
@@ -1439,12 +1446,11 @@
                     Associer un nouveau boîtier SumUp Solo :
                   </label>
                   <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.75rem 0; line-height: 1.4;">
-                    Sur le boîtier SumUp Solo (déconnecté de la caisse Bluetooth), allez dans <strong>Menu &rarr;
-                      Connexions &rarr; API Cloud &rarr; Connecter</strong> et saisissez le code à 8 ou 9 caractères
-                    affiché à l'écran :
+                    Sur le boîtier SumUp Solo, allez dans <strong>Menu &rarr; Connexions &rarr; API Cloud &rarr;
+                      Connecter</strong> et saisissez le code affiché :
                   </p>
                   <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <input type="text" id="sumup-pairing-code" placeholder="Code affiché sur le Solo (ex: A1B2C3D4)"
+                    <input type="text" id="sumup-pairing-code" placeholder="Code affiché sur le Solo"
                       style="flex: 1; text-transform: uppercase; padding: 0.7rem 0.9rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text-main);">
                     <button type="button" class="btn btn-outline" onclick="pairNewSumUpSoloReader()"
                       style="border-color: var(--accent-green); color: var(--accent-green); font-weight: 600; padding: 0.7rem 1rem;">
@@ -1455,7 +1461,7 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
         <!-- Modal d'encaissement en direct sur le boîtier SumUp Solo -->
         <div id="sumup-checkout-modal" class="modal-overlay hidden">
@@ -2127,7 +2133,7 @@
           style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
           <option value="Espèces" selected>💵 Espèces</option>
           <option value="Chèque">📝 Chèque</option>
-          <option value="Carte Bancaire">💳 Carte Bancaire / SumUp</option>
+          <option value="Carte Bancaire">💳 Carte Bancaire</option>
           <option value="Virement">🏦 Virement</option>
         </select>
       </div>
@@ -2220,7 +2226,7 @@
     src="https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v17.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="tournaments.js?v=2.4.8" defer></script>
-  <script src="app.js?v=2.9.34" defer></script>
+  <script src="app.js?v=2.9.35" defer></script>
   <script>
     // Initialisation des icônes Lucide
     lucide.createIcons();

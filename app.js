@@ -692,14 +692,36 @@ async function initAuth() {
   }
 }
 
+function resetRestrictedUI() {
+  const navTournaments = document.querySelector('.nav-menu li[data-section="tournaments"]');
+  const navAdmin = document.querySelector('.nav-menu li[data-section="admin"]');
+  const mobileTournaments = document.querySelector('.mobile-nav-item[data-section="tournaments"]');
+  const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
+  const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
+  const buvetteBtn = document.getElementById('buvette-header-btn');
+  const sumupCfgModal = document.getElementById('sumup-config-modal');
+  const sumupCheckoutModal = document.getElementById('sumup-checkout-modal');
+
+  if (navTournaments) navTournaments.style.display = 'none';
+  if (navAdmin) navAdmin.style.display = 'none';
+  if (mobileTournaments) mobileTournaments.style.display = 'none';
+  if (mobileAdmin) mobileAdmin.style.display = 'none';
+  if (editHomeBtn) editHomeBtn.style.display = 'none';
+  if (buvetteBtn) buvetteBtn.classList.add('hidden');
+  if (sumupCfgModal) sumupCfgModal.classList.add('hidden');
+  if (sumupCheckoutModal) sumupCheckoutModal.classList.add('hidden');
+}
+
 function handleSignIn(user) {
   currentUser = user;
+  resetRestrictedUI();
   showView('app-shell');
   loadAppData();
 }
 
 function handleSignOut() {
   currentUser = null;
+  resetRestrictedUI();
   if (inactivityTimeout) {
     clearTimeout(inactivityTimeout);
   }
@@ -718,13 +740,16 @@ function handleSignOut() {
 function applyRoleAccessControl() {
   let role = currentUser?.profile?.role || 'member';
 
-  // SÉCURITÉ ABSOLUE : Forcer le rôle admin pour le créateur et son compte de test
+  // SÉCURITÉ : Seul le compte propriétaire principal est forcé en admin
   const cEmail = (currentUser?.email || '').toLowerCase().trim();
-  if (cEmail === 'sebastien.tessier41@orange.fr' || cEmail === 'zizou41220@gmail.com') {
+  if (cEmail === 'sebastien.tessier41@orange.fr') {
     role = 'admin';
   }
   if (role) {
     role = role.trim().toLowerCase(); // au cas où il y aurait une majuscule ou un espace dans la base
+  }
+  if (currentUser?.profile) {
+    currentUser.profile.role = role;
   }
 
   const navHome = document.querySelector('.nav-menu li[data-section="home"]');
@@ -735,12 +760,12 @@ function applyRoleAccessControl() {
   const mobileHome = document.querySelector('.mobile-nav-item[data-section="home"]');
   const mobileTournaments = document.querySelector('.mobile-nav-item[data-section="tournaments"]');
   const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
+  const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
 
   // Find currently active section
   const activeNav = document.querySelector('.nav-menu li.active');
   const currentSection = activeNav ? activeNav.getAttribute('data-section') : null;
 
-  const canManageStock = currentUser?.profile?.can_manage_stock === true;
   const isSuperAdmin = role === 'admin';
   const isAdminTabVisible = isSuperAdmin;
 
@@ -751,11 +776,13 @@ function applyRoleAccessControl() {
     if (navTournaments) navTournaments.style.display = '';
     if (mobileHome) mobileHome.style.display = '';
     if (mobileTournaments) mobileTournaments.style.display = '';
+    if (editHomeBtn) editHomeBtn.style.display = 'block';
   } else {
     if (navHome) navHome.style.display = ''; // Tous les membres voient l'accueil
     if (navTournaments) navTournaments.style.display = 'none';
     if (mobileHome) mobileHome.style.display = '';
     if (mobileTournaments) mobileTournaments.style.display = 'none';
+    if (editHomeBtn) editHomeBtn.style.display = 'none';
   }
 
   // --- GESTION BUVETTE (MODAL) ---
@@ -1573,12 +1600,6 @@ function initNavigation() {
           renderItemsMonthlyChart();
         }
       }
-
-      if (paneId === 'adm-sumup') {
-        if (typeof loadSumUpConfigUI === 'function') {
-          loadSumUpConfigUI();
-        }
-      }
     });
   });
 
@@ -1686,11 +1707,10 @@ function initNavigation() {
 }
 
 function switchSection(name) {
-  const role = currentUser?.profile?.role || 'member';
-  const canManageStock = currentUser?.profile?.can_manage_stock === true;
-  const isStaff = (role === 'admin' || canManageStock);
+  const role = (currentUser?.profile?.role || 'member').trim().toLowerCase();
+  const isAdmin = (role === 'admin');
 
-  if (!isStaff && (name === 'admin' || name === 'caisse')) {
+  if (!isAdmin && (name === 'admin' || name === 'caisse' || name === 'tournaments')) {
     name = 'home';
   }
 
@@ -2522,7 +2542,7 @@ async function loadAppData() {
     let profile = await ensureUserProfileExists(currentUser);
 
     const normEmail = (currentUser.email || '').toLowerCase().trim();
-    const isOwner = normEmail === 'sebastien.tessier41@orange.fr' || normEmail === 'zizou41220@gmail.com';
+    const isOwner = normEmail === 'sebastien.tessier41@orange.fr';
 
     if (!profile) {
       currentUser.profile = {
@@ -2534,11 +2554,18 @@ async function loadAppData() {
       currentUser.profile = profile;
       if (isOwner) {
         currentUser.profile.role = 'admin';
+      } else if (currentUser.profile.role) {
+        currentUser.profile.role = currentUser.profile.role.trim().toLowerCase();
+      } else {
+        currentUser.profile.role = 'member';
       }
     }
 
     // Vérification de validité de l'abonnement pour les membres simples
     const role = currentUser.profile?.role || 'member';
+    if (role !== 'admin') {
+      resetRestrictedUI();
+    }
 
     // Détection si l'appareil est un mobile/smartphone (User-Agent, taille d'écran ou écran tactile)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -3138,6 +3165,11 @@ async function loadAdminData() {
   const isSuperAdmin = currentUser?.profile?.role === 'admin';
   const canManageStock = currentUser?.profile?.can_manage_stock === true;
 
+  if (!isSuperAdmin) {
+    resetRestrictedUI();
+    return;
+  }
+
   // Gérer la visibilité des onglets
   document.querySelectorAll('.btn-tab').forEach(btn => {
     const tabName = btn.getAttribute('data-tab');
@@ -3146,7 +3178,7 @@ async function loadAdminData() {
     } else if (tabName === 'adm-caisse') {
       btn.style.display = isSuperAdmin || canManageStock ? 'inline-block' : 'none';
     } else {
-      btn.style.display = 'inline-block';
+      btn.style.display = isSuperAdmin ? 'inline-block' : 'none';
     }
   });
 
@@ -4147,15 +4179,10 @@ if (btnSubmitCredit) {
     const noteInput = document.getElementById('credit-note-input');
     const noteVal = noteInput ? noteInput.value.trim() : '';
 
-    if (paymentMethod === 'Carte Bancaire' && isSumUpEnabled()) {
-      const paidOnSolo = await processSumUpSoloPayment(amountVal, `Recharge Crédit BC41 - ${activeCreditMember.name}`);
-      if (!paidOnSolo) return;
-    } else {
-      const confirmCredit = confirm(
-        `Confirmez-vous l'ajout d'un crédit de ${amountVal.toFixed(2).replace('.', ',')} € (${paymentMethod}) sur le compte de ${activeCreditMember.name} ?`
-      );
-      if (!confirmCredit) return;
-    }
+    const confirmCredit = confirm(
+      `Confirmez-vous l'ajout d'un crédit de ${amountVal.toFixed(2).replace('.', ',')} € (${paymentMethod}) sur le compte de ${activeCreditMember.name} ?`
+    );
+    if (!confirmCredit) return;
 
     const adminName = currentUser ? (currentUser.full_name || currentUser.profile?.full_name || currentUser.email) : 'Admin';
 
@@ -4353,6 +4380,7 @@ function updateSumUpStatusPill() {
 }
 
 async function loadSumUpConfigUI() {
+  if (currentUser?.profile?.role !== 'admin') return;
   const cfg = getSumUpConfig();
   const enabledCb = document.getElementById('sumup-enabled-cb');
   const apiKeyIn = document.getElementById('sumup-api-key');
@@ -4373,7 +4401,21 @@ async function loadSumUpConfigUI() {
 }
 window.loadSumUpConfigUI = loadSumUpConfigUI;
 
+function openSumUpConfigModal() {
+  if (currentUser?.profile?.role !== 'admin') {
+    alert("Accès réservé aux administrateurs.");
+    return;
+  }
+  const modal = document.getElementById('sumup-config-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  loadSumUpConfigUI();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+window.openSumUpConfigModal = openSumUpConfigModal;
+
 function saveSumUpConfig() {
+  if (currentUser?.profile?.role !== 'admin') return;
   const enabled = document.getElementById('sumup-enabled-cb')?.checked || false;
   const apiKey = (document.getElementById('sumup-api-key')?.value || '').trim();
   const merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
@@ -4384,6 +4426,7 @@ function saveSumUpConfig() {
   const cfg = { enabled, apiKey, merchantCode, readerId, readerName };
   localStorage.setItem('bc41_sumup_config', JSON.stringify(cfg));
   updateSumUpStatusPill();
+  document.getElementById('sumup-config-modal')?.classList.add('hidden');
   alert("✅ Configuration SumUp enregistrée !");
 }
 window.saveSumUpConfig = saveSumUpConfig;
@@ -4495,6 +4538,10 @@ async function pairNewSumUpSoloReader() {
 window.pairNewSumUpSoloReader = pairNewSumUpSoloReader;
 
 async function processSumUpSoloPayment(amountEur, description) {
+  if (currentUser?.profile?.role !== 'admin') {
+    alert("Accès réservé aux administrateurs (Caisse Bar).");
+    return false;
+  }
   const cfg = getSumUpConfig();
   const modal = document.getElementById('sumup-checkout-modal');
   const amountEl = document.getElementById('sumup-checkout-amount');
@@ -4594,7 +4641,7 @@ async function processSumUpSoloPayment(amountEur, description) {
         statusBox.innerHTML = `⚠️ Boîtier hors-ligne ou non joignable.<br><small>Encaissez sur le Solo puis cliquez sur « Paiement accepté » ci-dessous.</small>`;
       }
     } else {
-      statusBox.innerHTML = `ℹ️ Liaison automatique Cloud non configurée (onglet Admin &rarr; SumUp).<br><small>Encaissez <strong>${amountEur.toFixed(2).replace('.', ',')} €</strong> sur votre boîtier SumUp Solo puis cliquez sur <strong>Valider</strong> ci-dessous pour effacer l'ardoise.</small>`;
+      statusBox.innerHTML = `ℹ️ Liaison automatique Cloud non configurée (bouton ⚙️ SumUp dans Caisse Bar).<br><small>Encaissez <strong>${amountEur.toFixed(2).replace('.', ',')} €</strong> sur votre boîtier SumUp Solo puis cliquez sur <strong>Valider</strong> ci-dessous pour effacer l'ardoise.</small>`;
     }
   });
 }
