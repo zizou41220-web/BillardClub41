@@ -1573,6 +1573,12 @@ function initNavigation() {
           renderItemsMonthlyChart();
         }
       }
+
+      if (paneId === 'adm-sumup') {
+        if (typeof loadSumUpConfigUI === 'function') {
+          loadSumUpConfigUI();
+        }
+      }
     });
   });
 
@@ -2052,6 +2058,7 @@ function updateCaisseTicketUI() {
   } else {
     const m = caisseSelectedMember;
     const btnEncaisserArdoise = document.getElementById('caisse-btn-encaisser-ardoise');
+    const btnSumupArdoise = document.getElementById('caisse-btn-sumup-ardoise');
     if (clientNameEl) clientNameEl.innerHTML = `Client : <strong style="color:var(--text-main);">${m.full_name || m.email}</strong>`;
     if (freeBox) freeBox.classList.add('hidden');
     if (secondaryPayBtns) secondaryPayBtns.style.display = 'grid';
@@ -2071,6 +2078,15 @@ function updateCaisseTicketUI() {
         } else {
           btnEncaisserArdoise.classList.add('hidden');
           btnEncaisserArdoise.style.display = 'none';
+        }
+      }
+      if (btnSumupArdoise) {
+        if (m.balance > 0) {
+          btnSumupArdoise.classList.remove('hidden');
+          btnSumupArdoise.style.display = 'inline-flex';
+        } else {
+          btnSumupArdoise.classList.add('hidden');
+          btnSumupArdoise.style.display = 'none';
         }
       }
     }
@@ -2147,11 +2163,20 @@ function openCaisseRechargeModal() {
   window.openCreditModal(m.id, m.full_name || m.email, m.credit);
 }
 
-async function clearCaisseMemberArdoise() {
+async function clearCaisseMemberArdoise(mode = 'especes') {
   if (!caisseSelectedMember) return;
   const memberName = caisseSelectedMember.full_name || caisseSelectedMember.email || 'ce membre';
-  const amountStr = (caisseSelectedMember.balance || 0).toFixed(2).replace('.', ',');
-  await clearMemberBalance(caisseSelectedMember.id, memberName, amountStr);
+  const amountVal = caisseSelectedMember.balance || 0;
+  const amountStr = amountVal.toFixed(2).replace('.', ',');
+
+  if (mode === 'sumup') {
+    const ok = await processSumUpSoloPayment(amountVal, `Ardoise BC41 - ${memberName}`);
+    if (!ok) return;
+    await clearMemberBalance(caisseSelectedMember.id, memberName, amountStr, 'SumUp CB', true);
+  } else {
+    await clearMemberBalance(caisseSelectedMember.id, memberName, amountStr, 'Espèces', false);
+  }
+
   await loadCaisseMembers();
   caisseSelectedMember = caisseMembersList.find(m => m.id === caisseSelectedMember.id) || null;
   renderCaisseMembers(document.getElementById('caisse-member-search')?.value || '');
@@ -2207,7 +2232,15 @@ async function submitCaisseOrder(paymentMode = 'auto') {
     }
   }
 
-  if (!confirm(confirmMessage)) return;
+  if (paymentMode === 'card' && !caisseIsFreeMode && totalOrderAmount > 0 && isSumUpEnabled()) {
+    const targetLabel = caisseSelectedMember
+      ? `Bar BC41 - ${caisseSelectedMember.full_name || caisseSelectedMember.email}`
+      : `Bar BC41 - Vente Directe`;
+    const paidOnSolo = await processSumUpSoloPayment(totalOrderAmount, targetLabel);
+    if (!paidOnSolo) return;
+  } else {
+    if (!confirm(confirmMessage)) return;
+  }
 
   const adminName = currentUser ? (currentUser.full_name || currentUser.profile?.full_name || currentUser.email) : 'Admin';
   toggleLoading(true);
@@ -4231,7 +4264,7 @@ if (btnSubmitCredit) {
   });
 }
 
-async function clearMemberBalance(memberId, memberName = '', amountStr = '') {
+async function clearMemberBalance(memberId, memberName = '', amountStr = '', methodLabel = '', skipConfirm = false) {
   let resolvedName = memberName;
   if (!resolvedName && window.allMembersList) {
     const found = window.allMembersList.find(m => String(m.id) === String(memberId));
@@ -4243,19 +4276,22 @@ async function clearMemberBalance(memberId, memberName = '', amountStr = '') {
       if (prof) resolvedName = prof.full_name || prof.email || '';
     } catch (e) {}
   }
-  const confirmMsg = (resolvedName && amountStr)
-    ? `Confirmez-vous le règlement et la remise à zéro de l'ardoise de ${resolvedName} (${amountStr} €) ?`
-    : (resolvedName
-      ? `Marquer TOUTE l'ardoise comme payée pour ${resolvedName} ?`
-      : "Marquer TOUTE l'ardoise comme payée pour ce membre ?");
-  if (!confirm(confirmMsg)) return;
+  if (!skipConfirm) {
+    const confirmMsg = (resolvedName && amountStr)
+      ? `Confirmez-vous le règlement et la remise à zéro de l'ardoise de ${resolvedName} (${amountStr} €) ?`
+      : (resolvedName
+        ? `Marquer TOUTE l'ardoise comme payée pour ${resolvedName} ?`
+        : "Marquer TOUTE l'ardoise comme payée pour ce membre ?");
+    if (!confirm(confirmMsg)) return;
+  }
 
   show('loading');
 
+  const adminLabel = currentUser ? (currentUser.full_name || currentUser.email) : 'Admin';
   const payload = {
     is_paid: true,
     paid_at: new Date().toISOString(),
-    paid_by_name: currentUser ? (currentUser.full_name || currentUser.email) : 'Admin'
+    paid_by_name: methodLabel ? `${adminLabel} (${methodLabel})` : adminLabel
   };
 
   const { error } = await supabaseClient
@@ -4269,11 +4305,295 @@ async function clearMemberBalance(memberId, memberName = '', amountStr = '') {
     alert("Erreur: " + error.message + "\n\nAstuce: Avez-vous bien ajouté les colonnes 'paid_at' (type timestampz) et 'paid_by_name' (type text) dans la table 'consumptions' sur Supabase ?");
   }
   else {
-    alert("Ardoise effacée !");
+    alert(methodLabel ? `✅ Ardoise de ${resolvedName || 'ce membre'} réglée (${methodLabel}) et remise à zéro !` : "Ardoise effacée !");
     loadAdminData();
     if (memberId === currentUser.id) loadAppData(true);
   }
 }
+
+// ==============================================================================
+// INTÉGRATION TERMINAL CB SUMUP SOLO (CLOUD API)
+// ==============================================================================
+function getSumUpConfig() {
+  try {
+    const raw = localStorage.getItem('bc41_sumup_config');
+    return raw ? JSON.parse(raw) : { enabled: false, apiKey: '', merchantCode: '', readerId: '' };
+  } catch (e) {
+    return { enabled: false, apiKey: '', merchantCode: '', readerId: '' };
+  }
+}
+
+function isSumUpEnabled() {
+  const cfg = getSumUpConfig();
+  return !!(cfg.enabled && cfg.apiKey && cfg.merchantCode && cfg.readerId);
+}
+
+function updateSumUpStatusPill() {
+  const pill = document.getElementById('sumup-status-pill');
+  if (!pill) return;
+  const cfg = getSumUpConfig();
+  if (cfg.enabled && cfg.apiKey && cfg.merchantCode && cfg.readerId) {
+    pill.textContent = '✅ SumUp Solo Actif';
+    pill.style.background = 'rgba(16, 185, 129, 0.2)';
+    pill.style.color = '#34d399';
+  } else if (cfg.apiKey) {
+    pill.textContent = '⚠️ Boîtier Solo à sélectionner';
+    pill.style.background = 'rgba(245, 158, 11, 0.2)';
+    pill.style.color = '#fbbf24';
+  } else {
+    pill.textContent = 'Non configuré';
+    pill.style.background = 'rgba(148, 163, 184, 0.15)';
+    pill.style.color = '#94a3b8';
+  }
+}
+
+async function loadSumUpConfigUI() {
+  const cfg = getSumUpConfig();
+  const enabledCb = document.getElementById('sumup-enabled-cb');
+  const apiKeyIn = document.getElementById('sumup-api-key');
+  const merchantIn = document.getElementById('sumup-merchant-code');
+  const readerSel = document.getElementById('sumup-reader-select');
+
+  if (enabledCb) enabledCb.checked = !!cfg.enabled;
+  if (apiKeyIn) apiKeyIn.value = cfg.apiKey || '';
+  if (merchantIn) merchantIn.value = cfg.merchantCode || '';
+  if (readerSel && cfg.readerId) {
+    readerSel.innerHTML = `<option value="${cfg.readerId}">Boîtier Solo configuré (${cfg.readerName || cfg.readerId})</option>`;
+    readerSel.value = cfg.readerId;
+  }
+  updateSumUpStatusPill();
+  if (cfg.apiKey) {
+    await fetchSumUpMerchantAndReaders(true);
+  }
+}
+window.loadSumUpConfigUI = loadSumUpConfigUI;
+
+function saveSumUpConfig() {
+  const enabled = document.getElementById('sumup-enabled-cb')?.checked || false;
+  const apiKey = (document.getElementById('sumup-api-key')?.value || '').trim();
+  const merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
+  const readerSelect = document.getElementById('sumup-reader-select');
+  const readerId = readerSelect?.value || '';
+  const readerName = readerSelect?.options[readerSelect.selectedIndex]?.textContent || '';
+
+  const cfg = { enabled, apiKey, merchantCode, readerId, readerName };
+  localStorage.setItem('bc41_sumup_config', JSON.stringify(cfg));
+  updateSumUpStatusPill();
+  alert("✅ Configuration SumUp enregistrée !");
+}
+window.saveSumUpConfig = saveSumUpConfig;
+
+async function fetchSumUpMerchantAndReaders(silent = false) {
+  const apiKey = (document.getElementById('sumup-api-key')?.value || getSumUpConfig().apiKey || '').trim();
+  if (!apiKey) {
+    if (!silent) alert("Veuillez d'abord saisir votre Clé API SumUp (sup_sk_...).");
+    return;
+  }
+
+  try {
+    if (!silent) toggleLoading(true);
+    let merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
+
+    if (!merchantCode) {
+      const meRes = await fetch('https://api.sumup.com/v0.1/me', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (!meRes.ok) throw new Error("Clé API SumUp invalide ou refusée.");
+      const meData = await meRes.json();
+      merchantCode = meData?.merchant_profile?.merchant_code || '';
+      const merchantIn = document.getElementById('sumup-merchant-code');
+      if (merchantIn && merchantCode) merchantIn.value = merchantCode;
+    }
+
+    if (merchantCode) {
+      const rRes = await fetch(`https://api.sumup.com/v0.1/merchants/${encodeURIComponent(merchantCode)}/readers`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (rRes.ok) {
+        const rData = await rRes.json();
+        const items = rData?.items || (Array.isArray(rData) ? rData : []);
+        const select = document.getElementById('sumup-reader-select');
+        const savedCfg = getSumUpConfig();
+        if (select) {
+          if (items.length === 0) {
+            select.innerHTML = `<option value="">-- Aucun boîtier Solo associé sur ce compte --</option>`;
+          } else {
+            select.innerHTML = items.map(r => {
+              const sel = (savedCfg.readerId && savedCfg.readerId === r.id) ? 'selected' : '';
+              return `<option value="${r.id}" ${sel}>${r.name || 'SumUp Solo'} (${r.status || 'Prêt'})</option>`;
+            }).join('');
+          }
+        }
+      }
+    }
+    if (!silent) {
+      saveSumUpConfig();
+    }
+  } catch (err) {
+    if (!silent) alert("Erreur connexion SumUp : " + err.message);
+  } finally {
+    if (!silent) toggleLoading(false);
+  }
+}
+window.fetchSumUpMerchantAndReaders = fetchSumUpMerchantAndReaders;
+
+async function pairNewSumUpSoloReader() {
+  const apiKey = (document.getElementById('sumup-api-key')?.value || '').trim();
+  let merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
+  const pairingCode = (document.getElementById('sumup-pairing-code')?.value || '').trim().toUpperCase();
+
+  if (!apiKey) return alert("Veuillez d'abord renseigner votre Clé API SumUp (sup_sk_...).");
+  if (!pairingCode) return alert("Veuillez saisir le code d'association à 8 ou 9 caractères affiché sur l'écran du boîtier SumUp Solo.");
+
+  toggleLoading(true);
+  try {
+    if (!merchantCode) {
+      const meRes = await fetch('https://api.sumup.com/v0.1/me', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        merchantCode = meData?.merchant_profile?.merchant_code || '';
+        const merchantIn = document.getElementById('sumup-merchant-code');
+        if (merchantIn) merchantIn.value = merchantCode;
+      }
+    }
+    if (!merchantCode) throw new Error("Code marchand introuvable.");
+
+    const pairRes = await fetch(`https://api.sumup.com/v0.1/merchants/${encodeURIComponent(merchantCode)}/readers`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        pairing_code: pairingCode,
+        name: 'SumUp Solo Bar BC41'
+      })
+    });
+
+    if (!pairRes.ok) {
+      const errBody = await pairRes.json().catch(() => ({}));
+      throw new Error(errBody.detail || errBody.message || `Code refusé (${pairRes.status})`);
+    }
+
+    document.getElementById('sumup-pairing-code').value = '';
+    await fetchSumUpMerchantAndReaders(true);
+    saveSumUpConfig();
+    alert("✅ Boîtier SumUp Solo associé avec succès !");
+  } catch (err) {
+    alert("Erreur lors de l'association du boîtier Solo : " + err.message);
+  } finally {
+    toggleLoading(false);
+  }
+}
+window.pairNewSumUpSoloReader = pairNewSumUpSoloReader;
+
+async function processSumUpSoloPayment(amountEur, description) {
+  const cfg = getSumUpConfig();
+  const modal = document.getElementById('sumup-checkout-modal');
+  const amountEl = document.getElementById('sumup-checkout-amount');
+  const descEl = document.getElementById('sumup-checkout-desc');
+  const statusBox = document.getElementById('sumup-checkout-status-box');
+  const btnConfirmManual = document.getElementById('sumup-btn-confirm-manual');
+  const btnCancel = document.getElementById('sumup-btn-cancel-checkout');
+
+  if (!modal) {
+    return confirm(`Confirmez-vous que le paiement CB SumUp de ${amountEur.toFixed(2).replace('.', ',')} € (${description}) a bien été encaissé ?`);
+  }
+
+  amountEl.textContent = `${amountEur.toFixed(2).replace('.', ',')} €`;
+  descEl.textContent = description;
+
+  return new Promise(async (resolve) => {
+    let pollTimer = null;
+    let clientTxId = null;
+
+    const cleanup = () => {
+      if (pollTimer) clearInterval(pollTimer);
+      modal.classList.add('hidden');
+    };
+
+    btnConfirmManual.onclick = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    btnCancel.onclick = async () => {
+      if (cfg.apiKey && cfg.merchantCode && cfg.readerId) {
+        try {
+          await fetch(`https://api.sumup.com/v0.1/merchants/${encodeURIComponent(cfg.merchantCode)}/readers/${encodeURIComponent(cfg.readerId)}/terminate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${cfg.apiKey}` }
+          });
+        } catch (_) {}
+      }
+      cleanup();
+      resolve(false);
+    };
+
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    if (cfg.apiKey && cfg.merchantCode && cfg.readerId) {
+      statusBox.innerHTML = `📡 Envoi du montant au boîtier <strong>SumUp Solo</strong>...`;
+      try {
+        const valueInCents = Math.round(amountEur * 100);
+        const res = await fetch(`https://api.sumup.com/v0.1/merchants/${encodeURIComponent(cfg.merchantCode)}/readers/${encodeURIComponent(cfg.readerId)}/checkout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${cfg.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            total_amount: {
+              value: valueInCents,
+              currency: 'EUR',
+              minor_unit: 2
+            },
+            description: description
+          })
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          statusBox.innerHTML = `⚠️ Impossible de réveiller automatiquement le Solo (${errJson.detail || res.status}).<br><small>Vous pouvez taper ${amountEur.toFixed(2).replace('.', ',')} € sur le boîtier puis cliquer sur Valider ci-dessous.</small>`;
+          return;
+        }
+
+        const resData = await res.json().catch(() => ({}));
+        clientTxId = resData?.data?.client_transaction_id || resData?.client_transaction_id || null;
+        statusBox.innerHTML = `💳 <strong>Boîtier SumUp Solo allumé !</strong><br>En attente de la carte bancaire du membre sur le terminal...`;
+
+        if (clientTxId) {
+          pollTimer = setInterval(async () => {
+            try {
+              const txRes = await fetch(`https://api.sumup.com/v0.1/merchants/${encodeURIComponent(cfg.merchantCode)}/transactions?client_transaction_id=${encodeURIComponent(clientTxId)}`, {
+                headers: { 'Authorization': `Bearer ${cfg.apiKey}` }
+              });
+              if (txRes.ok) {
+                const txData = await txRes.json();
+                const status = (txData?.status || '').toUpperCase();
+                if (status === 'SUCCESSFUL') {
+                  cleanup();
+                  resolve(true);
+                } else if (status === 'FAILED' || status === 'CANCELLED') {
+                  statusBox.innerHTML = `❌ Paiement refusé ou annulé sur le boîtier SumUp Solo.`;
+                  if (pollTimer) clearInterval(pollTimer);
+                }
+              }
+            } catch (_) {}
+          }, 2500);
+        }
+      } catch (e) {
+        statusBox.innerHTML = `⚠️ Boîtier hors-ligne ou non joignable.<br><small>Encaissez sur le Solo puis cliquez sur « Paiement accepté » ci-dessous.</small>`;
+      }
+    } else {
+      statusBox.innerHTML = `ℹ️ Liaison automatique Cloud non configurée (onglet Admin &rarr; SumUp).<br><small>Encaissez <strong>${amountEur.toFixed(2).replace('.', ',')} €</strong> sur votre boîtier SumUp Solo puis cliquez sur <strong>Valider</strong> ci-dessous pour effacer l'ardoise.</small>`;
+    }
+  });
+}
+window.processSumUpSoloPayment = processSumUpSoloPayment;
 
 async function openMemberConsumptionDetails(memberId, memberName) {
   show('loading');
