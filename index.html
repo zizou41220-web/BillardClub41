@@ -1003,7 +1003,8 @@
               <button class="btn-tab" data-tab="adm-drinks">Articles & Stocks</button>
               <button class="btn-tab" data-tab="adm-subs">Abonnements</button>
               <button class="btn-tab" data-tab="adm-stats">Statistiques</button>
-              <button class="btn-tab" data-tab="adm-sumup"><i data-lucide="credit-card" style="width:14px; height:14px; vertical-align:-2px; margin-right:4px;"></i>SumUp</button>
+              <button class="btn-tab" data-tab="adm-sumup"><i data-lucide="credit-card"
+                  style="width:14px; height:14px; vertical-align:-2px; margin-right:4px;"></i>SumUp</button>
             </div>
           </div>
 
@@ -1105,7 +1106,8 @@
                         <i data-lucide="check" style="width:13px; height:13px;"></i> Solder
                       </button>
                       <button id="caisse-btn-sumup-ardoise" class="caisse-btn-action-sm hidden"
-                        onclick="clearCaisseMemberArdoise('sumup')" title="Envoyer l'ardoise sur le terminal SumUp Solo et l'effacer après paiement CB"
+                        onclick="clearCaisseMemberArdoise('sumup')"
+                        title="Envoyer l'ardoise sur le terminal SumUp Solo et l'effacer après paiement CB"
                         style="background:rgba(59, 130, 246, 0.2); border:1px solid rgba(59, 130, 246, 0.5); color:#93c5fd; font-weight:700;">
                         <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Solder SumUp
                       </button>
@@ -1340,31 +1342,41 @@
 
           <!-- SumUp Integration Section -->
           <div id="adm-sumup" class="admin-pane card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
               <div>
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem;">
                   <i data-lucide="credit-card" style="color: #38bdf8;"></i> Liaison Terminal CB SumUp Solo
                 </h3>
                 <p style="margin: 0.35rem 0 0 0; color: var(--text-muted); font-size: 0.9rem;">
-                  Envoyez directement le montant des consommations ou de l'ardoise sur votre boîtier <strong>SumUp Solo</strong> : dès que la carte est acceptée, l'ardoise est automatiquement effacée dans l'application.
+                  Envoyez directement le montant des consommations ou de l'ardoise sur votre boîtier <strong>SumUp
+                    Solo</strong> : dès que la carte est acceptée, l'ardoise est automatiquement effacée dans
+                  l'application.
                 </p>
               </div>
-              <span id="sumup-status-pill" class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; padding: 6px 12px; font-size: 0.85rem;">
+              <span id="sumup-status-pill" class="badge"
+                style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; padding: 6px 12px; font-size: 0.85rem;">
                 Non configuré
               </span>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
               <!-- Bloc 1 : Clé API & Activation -->
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
-                <h4 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-                  <i data-lucide="key" style="width: 18px; height: 18px; color: var(--accent-gold);"></i> 1. Compte Marchand SumUp
+              <div
+                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
+                <h4
+                  style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                  <i data-lucide="key" style="width: 18px; height: 18px; color: var(--accent-gold);"></i> 1. Compte
+                  Marchand SumUp
                 </h4>
 
                 <div class="input-group" style="margin-bottom: 1rem;">
-                  <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); margin-bottom: 0;">
-                    <input type="checkbox" id="sumup-enabled-cb" style="width: 18px; height: 18px; accent-color: #38bdf8; cursor: pointer;">
-                    <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Activer l'envoi automatique au boîtier SumUp Solo</span>
+                  <label
+                    style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); margin-bottom: 0;">
+                    <input type="checkbox" id="sumup-enabled-cb"
+                      style="width: 18px; height: 18px; accent-color: #38bdf8; cursor: pointer;">
+                    <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Activer l'envoi
+                      automatique au boîtier SumUp Solo</span>
                   </label>
                 </div>
 
@@ -1372,55 +1384,70 @@
                   <label>Clé API secrète SumUp (<code>sup_sk_...</code>)</label>
                   <input type="password" id="sumup-api-key" placeholder="sup_sk_..." autocomplete="off">
                   <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 4px;">
-                    Sur <a href="https://me.sumup.com/fr-fr/settings/api-keys" target="_blank" style="color: #38bdf8;">me.sumup.com &rarr; Paramètres &rarr; Pour les développeurs &rarr; Clés API</a>
+                    Sur <a href="https://me.sumup.com/fr-fr/settings/api-keys" target="_blank"
+                      style="color: #38bdf8;">me.sumup.com &rarr; Paramètres &rarr; Pour les développeurs &rarr; Clés
+                      API</a>
                   </small>
                 </div>
 
                 <div class="input-group">
                   <label>Code Marchand SumUp (ex: <code>M1234567</code>)</label>
                   <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="sumup-merchant-code" placeholder="Récupéré automatiquement ou saisir..." style="flex: 1;">
-                    <button type="button" class="btn btn-outline" onclick="fetchSumUpMerchantAndReaders()" title="Détecter automatiquement depuis la clé API" style="white-space: nowrap; padding: 0 12px;">
+                    <input type="text" id="sumup-merchant-code" placeholder="Récupéré automatiquement ou saisir..."
+                      style="flex: 1;">
+                    <button type="button" class="btn btn-outline" onclick="fetchSumUpMerchantAndReaders()"
+                      title="Détecter automatiquement depuis la clé API" style="white-space: nowrap; padding: 0 12px;">
                       <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i> Détecter
                     </button>
                   </div>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
-                  <button type="button" class="btn-main" onclick="saveSumUpConfig()" style="border: none; padding: 9px 18px; border-radius: 8px; width: auto;">
+                  <button type="button" class="btn-main" onclick="saveSumUpConfig()"
+                    style="border: none; padding: 9px 18px; border-radius: 8px; width: auto;">
                     Enregistrer la configuration
                   </button>
                 </div>
               </div>
 
               <!-- Bloc 2 : Choix & Association du boîtier SumUp Solo -->
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
-                <h4 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-                  <i data-lucide="smartphone" style="width: 18px; height: 18px; color: var(--accent-green);"></i> 2. Boîtier SumUp Solo (Wi-Fi / 4G)
+              <div
+                style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;">
+                <h4
+                  style="margin-top: 0; margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                  <i data-lucide="smartphone" style="width: 18px; height: 18px; color: var(--accent-green);"></i> 2.
+                  Boîtier SumUp Solo (Wi-Fi / 4G)
                 </h4>
 
                 <div class="input-group">
                   <label>Boîtier Solo sélectionné pour le bar</label>
                   <div style="display: flex; gap: 0.5rem;">
-                    <select id="sumup-reader-select" style="flex: 1; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text-main);">
+                    <select id="sumup-reader-select"
+                      style="flex: 1; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text-main);">
                       <option value="">-- Aucun boîtier détecté --</option>
                     </select>
-                    <button type="button" class="btn btn-outline" onclick="fetchSumUpMerchantAndReaders()" title="Actualiser la liste des terminaux Solo" style="padding: 0 12px;">
+                    <button type="button" class="btn btn-outline" onclick="fetchSumUpMerchantAndReaders()"
+                      title="Actualiser la liste des terminaux Solo" style="padding: 0 12px;">
                       <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
                     </button>
                   </div>
                 </div>
 
                 <div style="border-top: 1px solid var(--border); margin: 1.1rem 0; padding-top: 1rem;">
-                  <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 0.4rem;">
+                  <label
+                    style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 0.4rem;">
                     Associer un nouveau boîtier SumUp Solo :
                   </label>
                   <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.75rem 0; line-height: 1.4;">
-                    Sur le boîtier SumUp Solo (déconnecté de la caisse Bluetooth), allez dans <strong>Menu &rarr; Connexions &rarr; API Cloud &rarr; Connecter</strong> et saisissez le code à 8 ou 9 caractères affiché à l'écran :
+                    Sur le boîtier SumUp Solo (déconnecté de la caisse Bluetooth), allez dans <strong>Menu &rarr;
+                      Connexions &rarr; API Cloud &rarr; Connecter</strong> et saisissez le code à 8 ou 9 caractères
+                    affiché à l'écran :
                   </p>
                   <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <input type="text" id="sumup-pairing-code" placeholder="Code affiché sur le Solo (ex: A1B2C3D4)" style="flex: 1; text-transform: uppercase; padding: 0.7rem 0.9rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text-main);">
-                    <button type="button" class="btn btn-outline" onclick="pairNewSumUpSoloReader()" style="border-color: var(--accent-green); color: var(--accent-green); font-weight: 600; padding: 0.7rem 1rem;">
+                    <input type="text" id="sumup-pairing-code" placeholder="Code affiché sur le Solo (ex: A1B2C3D4)"
+                      style="flex: 1; text-transform: uppercase; padding: 0.7rem 0.9rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text-main);">
+                    <button type="button" class="btn btn-outline" onclick="pairNewSumUpSoloReader()"
+                      style="border-color: var(--accent-green); color: var(--accent-green); font-weight: 600; padding: 0.7rem 1rem;">
                       Associer le Solo
                     </button>
                   </div>
@@ -1432,23 +1459,29 @@
 
         <!-- Modal d'encaissement en direct sur le boîtier SumUp Solo -->
         <div id="sumup-checkout-modal" class="modal-overlay hidden">
-          <div class="modal-content card" style="max-width: 440px; width: 100%; text-align: center; border: 1px solid rgba(56, 189, 248, 0.4); padding: 1.75rem; background: #0f172a;">
-            <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <div class="modal-content card"
+            style="max-width: 440px; width: 100%; text-align: center; border: 1px solid rgba(56, 189, 248, 0.4); padding: 1.75rem; background: #0f172a;">
+            <div
+              style="width: 64px; height: 64px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
               <i data-lucide="credit-card" style="width: 32px; height: 32px;"></i>
             </div>
             <h3 id="sumup-checkout-title" style="margin: 0 0 0.5rem 0; color: white;">Paiement sur SumUp Solo</h3>
-            <div id="sumup-checkout-amount" style="font-size: 2rem; font-weight: 800; color: #38bdf8; margin-bottom: 0.5rem;">0,00 €</div>
+            <div id="sumup-checkout-amount"
+              style="font-size: 2rem; font-weight: 800; color: #38bdf8; margin-bottom: 0.5rem;">0,00 €</div>
             <p id="sumup-checkout-desc" style="color: var(--text-muted); font-size: 0.92rem; margin: 0 0 1.25rem 0;">
               Présentez la carte bancaire sur le boîtier <strong>SumUp Solo</strong>...
             </p>
-            <div id="sumup-checkout-status-box" style="padding: 0.85rem; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); font-size: 0.88rem; color: #e2e8f0; margin-bottom: 1.5rem;">
+            <div id="sumup-checkout-status-box"
+              style="padding: 0.85rem; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); font-size: 0.88rem; color: #e2e8f0; margin-bottom: 1.5rem;">
               ⏳ En attente de présentation de la carte sur le terminal...
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
-              <button type="button" id="sumup-btn-confirm-manual" class="btn-main" style="background: #10b981; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; width: 100%; justify-content: center;">
+              <button type="button" id="sumup-btn-confirm-manual" class="btn-main"
+                style="background: #10b981; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; width: 100%; justify-content: center;">
                 ✅ Paiement accepté sur le Solo (Valider)
               </button>
-              <button type="button" id="sumup-btn-cancel-checkout" class="btn-alt" style="width: 100%; justify-content: center; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
+              <button type="button" id="sumup-btn-cancel-checkout" class="btn-alt"
+                style="width: 100%; justify-content: center; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
                 ✕ Annuler l'encaissement
               </button>
             </div>
@@ -1573,7 +1606,8 @@
                 <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">Tenir compte du stock</span>
               </label>
             </div>
-            <div id="drink-stock-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <div id="drink-stock-fields"
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
               <div class="input-group" style="margin-bottom: 0;">
                 <label>Stock Actuel</label>
                 <input type="number" id="drink-stock" value="0">
@@ -2093,7 +2127,7 @@
           style="width: 100%; padding: 0.6rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
           <option value="Espèces" selected>💵 Espèces</option>
           <option value="Chèque">📝 Chèque</option>
-          <option value="Carte Bancaire">💳 Carte Bancaire</option>
+          <option value="Carte Bancaire">💳 Carte Bancaire / SumUp</option>
           <option value="Virement">🏦 Virement</option>
         </select>
       </div>

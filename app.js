@@ -4147,10 +4147,15 @@ if (btnSubmitCredit) {
     const noteInput = document.getElementById('credit-note-input');
     const noteVal = noteInput ? noteInput.value.trim() : '';
 
-    const confirmCredit = confirm(
-      `Confirmez-vous l'ajout d'un crédit de ${amountVal.toFixed(2).replace('.', ',')} € (${paymentMethod}) sur le compte de ${activeCreditMember.name} ?`
-    );
-    if (!confirmCredit) return;
+    if (paymentMethod === 'Carte Bancaire' && isSumUpEnabled()) {
+      const paidOnSolo = await processSumUpSoloPayment(amountVal, `Recharge Crédit BC41 - ${activeCreditMember.name}`);
+      if (!paidOnSolo) return;
+    } else {
+      const confirmCredit = confirm(
+        `Confirmez-vous l'ajout d'un crédit de ${amountVal.toFixed(2).replace('.', ',')} € (${paymentMethod}) sur le compte de ${activeCreditMember.name} ?`
+      );
+      if (!confirmCredit) return;
+    }
 
     const adminName = currentUser ? (currentUser.full_name || currentUser.profile?.full_name || currentUser.email) : 'Admin';
 
