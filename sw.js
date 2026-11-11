@@ -1,16 +1,13 @@
-const CACHE_NAME = 'bc41-cache-v8';
+﻿const CACHE_NAME = 'bc41-cache-v9';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
-  './tournament_hero.css',
   './app.js',
-  './tournaments.js',
   './admin.js',
   './logo.png',
   './hero.png',
-  './management.png',
-  './tournaments.png'
+  './management.png'
 ];
 
 // Installation du service worker et mise en cache des fichiers

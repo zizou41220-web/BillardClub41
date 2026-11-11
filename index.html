@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -43,7 +43,6 @@
     }
   </script>
   <link rel="stylesheet" href="style.css?v=2.5.1">
-  <link rel="stylesheet" href="tournament_hero.css">
   <style>
     /* Force modal-overlay display flex when active, completely bypassing external CSS cache */
     @keyframes modalFadeIn {
@@ -232,9 +231,6 @@
         <li data-section="management">
           <i data-lucide="coffee"></i> <span>Consommations Club</span>
         </li>
-        <li data-section="tournaments" style="display: none;">
-          <i data-lucide="trophy"></i> <span>Tournois</span>
-        </li>
         <li data-section="admin" style="display: none;">
           <i data-lucide="shield-check"></i> <span>Administration</span>
         </li>
@@ -263,10 +259,6 @@
       <div class="mobile-nav-item" data-section="management">
         <i data-lucide="coffee"></i>
         <span>Consommations</span>
-      </div>
-      <div class="mobile-nav-item" data-section="tournaments" style="display: none;">
-        <i data-lucide="trophy"></i>
-        <span>Tournois</span>
       </div>
       <div class="mobile-nav-item" data-section="admin" style="display: none;">
         <i data-lucide="shield-check"></i>
@@ -447,241 +439,6 @@
             <div id="drinks-list" style="display: none;"></div>
           </div>
         </section>
-
-        <!-- Section Tournois -->
-        <section id="section-tournaments" class="view">
-          <div class="module-header tournament-hero-header">
-            <div class="hero-content">
-              <h2>Gestion des Tournois</h2>
-              <p class="hero-subtitle">Organisez, suivez et archivez vos compétitions de prestige.</p>
-            </div>
-            <button type="button" id="open-dashboard-btn" class="btn btn-alt" style="width:auto;"><i
-                data-lucide="bar-chart-2"></i> Statistiques Annuelles</button>
-          </div>
-
-          <!-- Elements cachés pour compatibilité avec tournaments.js -->
-          <div style="display:none;">
-            <img id="club-logo-main" class="club-logo-sync hidden" alt="Logo">
-            <input id="club-logo-input" type="file">
-            <button type="button" id="reset-club-logo">Reset</button>
-            <p id="club-logo-help"></p>
-          </div>
-
-          <div id="config-screen" class="screen-transition">
-            <!-- Removed club-brand card as we have a global sidebar now -->
-            <div class="layout">
-              <form id="tournoi-form" class="card">
-                <div class="chakra-choice chakra-type">
-                  <label class="chakra-label"><span class="chakra-icon icon-violet"></span>Type de
-                    tournoi :</label>
-                  <select id="type-tournoi" class="chakra-select">
-                    <option value="cartesien">Cartésien</option>
-                    <option value="elimination">Élimination Directe (Knockout)</option>
-                    <option value="poules">Poules (Round Robin)</option>
-                    <option value="double">Double Élimination</option>
-                    <option value="champ">Championnat</option>
-                  </select>
-                </div>
-
-                <div id="poules-config-wrap" class="hidden chakra-choice" style="margin-top: 15px;">
-                  <p class="chakra-label" style="margin-bottom: 10px;"><span
-                      class="chakra-icon icon-blue"></span>Configuration des poules :</p>
-
-                  <div class="inline" style="gap: 20px; align-items: flex-start; margin-bottom: 15px;">
-                    <div>
-                      <label class="help" style="display:block; margin-bottom:5px;">Nb de
-                        poules</label>
-                      <input id="nb-poules" class="chakra-input" type="number" min="1" value="2" style="width: 80px;">
-                    </div>
-                    <div style="padding-top: 25px; font-weight: bold; color: var(--muted);">OU</div>
-                    <div>
-                      <label class="help" style="display:block; margin-bottom:5px;">Joueurs /
-                        poule</label>
-                      <input id="joueurs-par-poule-input" class="chakra-input" type="number" min="2" value="4"
-                        style="width: 80px;">
-                    </div>
-                  </div>
-                  <p id="label-joueurs-par-poule" class="help hidden"></p>
-
-                  <div style="margin-bottom: 15px;">
-                    <label class="help" style="margin-bottom: 4px;">Répartition des joueurs</label>
-                    <div
-                      style="padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(255, 255, 255, 0.02); color: var(--text-main); font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                      <i data-lucide="shuffle" style="width: 16px; height: 16px; color: var(--accent-green);"></i>
-                      Tirage au sort automatique
-                    </div>
-                    <input type="hidden" id="repartition-poules" value="auto">
-                  </div>
-
-                  <div id="repartition-manuelle-wrap" class="hidden" style="margin-bottom: 15px;">
-                    <p class="help">Fais glisser les joueurs dans les poules ou utilise les boutons
-                      fléchés.</p>
-                    <div id="poules-container" class="poules-layout"
-                      style="display: grid; gap: 10px; margin-top: 10px;">
-                      <!-- Généré dynamiquement en JS -->
-                    </div>
-                  </div>
-
-                  <div class="inline" style="gap: 15px;">
-                    <div style="width: 140px;">
-                      <label class="help" style="margin-bottom: 4px;">Qualifiés / poule</label>
-                      <input id="qualifies-par-poule" class="chakra-input" type="number" min="1" value="2">
-                    </div>
-                    <div style="flex: 1;">
-                      <label class="help" style="margin-bottom: 4px;">Tableau final</label>
-                      <div
-                        style="padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(255, 255, 255, 0.02); color: var(--text-main); font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i data-lucide="shuffle" style="width: 16px; height: 16px; color: var(--accent-green);"></i>
-                        Tirage au sort (Aléatoire)
-                      </div>
-                      <input type="hidden" id="structure-finale-poules" value="auto">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="chakra-choice" style="margin-top: 15px;">
-                  <label class="chakra-label"><span class="chakra-icon icon-orange"></span>Catégorie
-                    du tournoi
-                    :</label>
-                  <select id="tournoi-categorie" class="chakra-select">
-                    <option value="amateur">Amateur</option>
-                    <option value="prestige">Prestige</option>
-                    <option value="mixte">Mixte (Amateur & Prestige)</option>
-                  </select>
-                  <p class="help" style="margin-top:8px;">La liste des participants se filtre
-                    automatiquement selon
-                    cette catégorie.</p>
-                </div>
-
-                <div>
-                  <label>Participants (cocher puis valider) :</label>
-                  <datalist id="liste-joueurs">
-                  </datalist>
-
-                  <div class="participants-box" style="margin-top:10px;">
-                    <div id="players-checklist" class="players-checklist"></div>
-                    <div class="inline" style="margin-top:8px;">
-                      <button type="button" id="validate-selection-btn" class="btn-main" style="width:auto;">Valider la
-                        sélection</button>
-                      <button type="button" id="edit-selection-btn" class="btn-alt hidden" style="width:auto;">Modifier
-                        la sélection</button>
-                    </div>
-                    <p style="margin:0;">Joueurs sélectionnés pour ce tournoi :</p>
-                    <div id="selected-players-list" class="participants-list"></div>
-                    <p class="help" id="selected-players-help" style="margin-top:8px;">Sélectionne
-                      au moins 2
-                      joueurs puis valide.</p>
-                  </div>
-                </div>
-
-                <div class="chakra-choice" style="margin-top: 15px;">
-                  <p class="chakra-label" style="margin-bottom: 10px;"><span
-                      class="chakra-icon icon-rainbow"></span>Règles des matchs :</p>
-
-                  <div class="inline" style="gap: 10px; margin-bottom: 15px; align-items: flex-end;">
-                    <div>
-                      <label for="regle-condition" class="help" style="margin-bottom: 4px;">Condition de
-                        victoire</label>
-                      <select id="regle-condition" class="chakra-select" required>
-                        <option value="" disabled selected>-- Sélectionnez --</option>
-                        <option value="total">Nb total de manches</option>
-                        <option value="gagnantes">Manches gagnantes</option>
-                      </select>
-                    </div>
-                    <div id="regle-nombre-wrap" style="width: 80px;">
-                      <label for="regle-nombre" class="help" style="margin-bottom: 4px;">Nombre</label>
-                      <input id="regle-nombre" class="chakra-input" type="number" min="1" value="1">
-                    </div>
-                  </div>
-
-                  <div id="regle-mixte-wrap" class="hidden"
-                    style="margin-bottom: 15px; background: rgba(0, 0, 0, 0.03); padding: 12px; border-radius: 8px;">
-                    <p class="help" style="margin-bottom: 8px; font-weight: 600; color: var(--text);">Objectifs
-                      par
-                      type de match :</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                      <div>
-                        <label class="help" style="margin-bottom: 4px;">Ama vs Ama</label>
-                        <input id="mixte-ama-ama" class="chakra-input" type="number" min="1" value="2">
-                      </div>
-                      <div>
-                        <label class="help" style="margin-bottom: 4px;">Pre vs Pre</label>
-                        <input id="mixte-pre-pre" class="chakra-input" type="number" min="1" value="3">
-                      </div>
-                      <div>
-                        <label class="help" style="margin-bottom: 4px;">Ama vs Pre</label>
-                        <div style="display: flex; gap: 4px; align-items: center;">
-                          <input id="mixte-ama-pre-ama" class="chakra-input" type="number" min="1" value="2"
-                            title="Objectif Amateur">
-                          <span>-</span>
-                          <input id="mixte-ama-pre-pre" class="chakra-input" type="number" min="1" value="3"
-                            title="Objectif Prestige">
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p class="help" style="margin-bottom: 4px;">Barème de points :</p>
-                  <div class="inline" style="grid-template-columns: repeat(3, minmax(90px, 1fr));">
-                    <div>
-                      <label for="points-victoire" class="help" style="margin-bottom: 4px;">Victoire</label>
-                      <input id="points-victoire" class="chakra-input" type="number" min="0" step="0.5" value="3">
-                    </div>
-                    <div>
-                      <label for="points-nul" class="help" style="margin-bottom: 4px;">Nul</label>
-                      <input id="points-nul" class="chakra-input" type="number" min="0" step="0.5" value="1">
-                    </div>
-                    <div>
-                      <label for="points-defaite" class="help" style="margin-bottom: 4px;">Défaite</label>
-                      <input id="points-defaite" class="chakra-input" type="number" min="0" step="0.5" value="0">
-                    </div>
-                  </div>
-                </div>
-
-                <div id="sortants-poules-wrap">
-                  <label for="sortants-poules" class="chakra-label"><span class="chakra-icon icon-orange"></span>Joueurs
-                    qui sortent du Cartésien
-                    :</label>
-                  <input id="sortants-poules" class="chakra-input" type="number" min="1" value="2">
-                  <p class="help" id="sortants-poules-help">Nombre de qualifiés pour la phase finale
-                    après le
-                    Cartésien.</p>
-                </div>
-
-                <br>
-                <button type="submit" class="btn-main">Créer le tournoi</button>
-              </form>
-
-              <!-- Admin Card Local from Appli tournois -->
-              <section class="card admin-card"
-                style="position: relative; right: auto; top: auto; width: 100%; margin-top: 0;">
-                <div class="admin-row inline admin-header-row">
-                  <h2 style="margin:0; font-size:1.1rem;">Base joueurs locale</h2>
-                  <button id="admin-toggle" type="button" class="btn-alt">Mode gestion</button>
-                </div>
-
-                <p class="help">Gérez la base de joueurs spécifique aux tournois.</p>
-
-                <div id="admin-panel" style="display: none;">
-                  <div class="admin-row inline admin-add-row">
-                    <input type="text" id="new-player-name" placeholder="Nom du joueur à ajouter">
-                    <button type="button" id="add-player-btn" class="btn-main" style="width:auto;">Ajouter</button>
-                  </div>
-                  <div class="admin-row admin-categories-picker">
-                    <label class="admin-category-chip"><input type="checkbox" id="new-player-amateur" checked>
-                      Amateur</label>
-                    <label class="admin-category-chip"><input type="checkbox" id="new-player-prestige" checked>
-                      Prestige</label>
-                    <label class="admin-category-chip"><input type="checkbox" id="new-player-guest">
-                      👤 Invité (Ponctuel)</label>
-                  </div>
-                  <div id="players-admin-list"></div>
-                  <div class="admin-row">
-                    <button type="button" id="admin-logout" class="btn-danger">Quitter le mode
-                      gestion</button>
-                  </div>
-                </div>
-              </section>
             </div>
           </div>
 
@@ -2225,7 +1982,6 @@
   <script async defer crossorigin="anonymous"
     src="https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v17.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="tournaments.js?v=2.4.8" defer></script>
   <script src="app.js?v=2.9.36" defer></script>
   <script>
     // Initialisation des icônes Lucide

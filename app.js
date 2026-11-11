@@ -1,4 +1,4 @@
-// Portail Unifié - Billard & Équitation
+﻿// Portail Unifié - Billard & Équitation
 console.log("Portail Unifié : Démarrage du script v2.9.21...");
 const APP_SUPABASE_URL = "https://iwtuwtvgrocmxfkmidlk.supabase.co";
 const APP_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3dHV3dHZncm9jbXhma21pZGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTM5NzUsImV4cCI6MjA5MzkyOTk3NX0.ISCfQxrD4dAnygL-teYon-KoJWrzDuTEHFZpe9tslmY";
@@ -171,7 +171,7 @@ async function submitLoginForm(e) {
               profileData.avatar_url = importedMember.avatar_url;
             }
             await supabaseClient.from('profiles').upsert(profileData);
-          } catch (_) {}
+          } catch (_) { }
         }
         alert("Inscription réussie ! Vous pouvez maintenant vous connecter.");
       }
@@ -693,9 +693,7 @@ async function initAuth() {
 }
 
 function resetRestrictedUI() {
-  const navTournaments = document.querySelector('.nav-menu li[data-section="tournaments"]');
   const navAdmin = document.querySelector('.nav-menu li[data-section="admin"]');
-  const mobileTournaments = document.querySelector('.mobile-nav-item[data-section="tournaments"]');
   const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
   const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
   const buvetteBtn = document.getElementById('buvette-header-btn');
@@ -703,9 +701,7 @@ function resetRestrictedUI() {
   const sumupCfgModal = document.getElementById('sumup-config-modal');
   const sumupCheckoutModal = document.getElementById('sumup-checkout-modal');
 
-  if (navTournaments) navTournaments.style.display = 'none';
   if (navAdmin) navAdmin.style.display = 'none';
-  if (mobileTournaments) mobileTournaments.style.display = 'none';
   if (mobileAdmin) mobileAdmin.style.display = 'none';
   if (editHomeBtn) editHomeBtn.style.display = 'none';
   if (buvetteBtn) buvetteBtn.classList.add('hidden');
@@ -755,12 +751,10 @@ function applyRoleAccessControl() {
   }
 
   const navHome = document.querySelector('.nav-menu li[data-section="home"]');
-  const navTournaments = document.querySelector('.nav-menu li[data-section="tournaments"]');
   const navAdmin = document.querySelector('.nav-menu li[data-section="admin"]');
   const mobileNavBar = document.getElementById('mobile-nav-bar');
 
   const mobileHome = document.querySelector('.mobile-nav-item[data-section="home"]');
-  const mobileTournaments = document.querySelector('.mobile-nav-item[data-section="tournaments"]');
   const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
   const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
   const sumupCfgBtn = document.getElementById('caisse-sumup-config-btn');
@@ -779,15 +773,11 @@ function applyRoleAccessControl() {
 
   if (isSuperAdmin) {
     if (navHome) navHome.style.display = '';
-    if (navTournaments) navTournaments.style.display = '';
     if (mobileHome) mobileHome.style.display = '';
-    if (mobileTournaments) mobileTournaments.style.display = '';
     if (editHomeBtn) editHomeBtn.style.display = 'block';
   } else {
     if (navHome) navHome.style.display = ''; // Tous les membres voient l'accueil
-    if (navTournaments) navTournaments.style.display = 'none';
     if (mobileHome) mobileHome.style.display = '';
-    if (mobileTournaments) mobileTournaments.style.display = 'none';
     if (editHomeBtn) editHomeBtn.style.display = 'none';
   }
 
@@ -1716,7 +1706,7 @@ function switchSection(name) {
   const role = (currentUser?.profile?.role || 'member').trim().toLowerCase();
   const isAdmin = (role === 'admin');
 
-  if (!isAdmin && (name === 'admin' || name === 'caisse' || name === 'tournaments')) {
+  if (!isAdmin && (name === 'admin' || name === 'caisse')) {
     name = 'home';
   }
 
@@ -1741,7 +1731,6 @@ function switchSection(name) {
 
   if (name === 'management') renderManagementUI();
   if (name === 'admin') loadAdminData();
-  if (name === 'tournaments') initTournamentsModule();
   if (name === 'caisse') renderCaisseBarUI();
 }
 
@@ -1767,7 +1756,7 @@ async function renderCaisseBarUI() {
   if (directBtn) directBtn.classList.add('active');
   const freeCommentInput = document.getElementById('caisse-free-comment');
   if (freeCommentInput) freeCommentInput.value = '';
-  
+
   // 1. S'assurer que les boissons sont disponibles en mémoire
   if ((!drinks || drinks.length === 0) && supabaseClient) {
     try {
@@ -1862,7 +1851,7 @@ function renderCaisseMembers(filterText = '') {
   container.innerHTML = filtered.map(m => {
     const isSelected = caisseSelectedMember && caisseSelectedMember.id === m.id;
     const initial = (m.full_name || m.email || '?')[0].toUpperCase();
-    
+
     let soldeHtml = '';
     if (m.credit > 0) {
       soldeHtml = `<span class="caisse-member-solde-tag caisse-solde-positive">+${m.credit.toFixed(2).replace('.', ',')} €</span>`;
@@ -1872,7 +1861,7 @@ function renderCaisseMembers(filterText = '') {
       soldeHtml = `<span class="caisse-member-solde-tag caisse-solde-neutral">0,00 €</span>`;
     }
 
-    const avatarHtml = m.avatar_url 
+    const avatarHtml = m.avatar_url
       ? `<img src="${m.avatar_url}" alt="${m.full_name}">`
       : `<span>${initial}</span>`;
 
@@ -1918,7 +1907,7 @@ function selectCaisseClient(memberId) {
 
   const directBtn = document.getElementById('caisse-direct-client-btn');
   const freeBtn = document.getElementById('caisse-free-client-btn');
-  
+
   if (memberId === 'FREE') {
     caisseIsFreeMode = true;
     caisseSelectedMember = null;
@@ -1949,7 +1938,7 @@ function selectCaisseClient(memberId) {
 function filterCaisseCategory(cat) {
   caisseActiveCategory = (cat === 'billard') ? 'billard' : 'bar';
   document.querySelectorAll('.caisse-cat-tab').forEach(t => t.classList.remove('active'));
-  const activeTab = Array.from(document.querySelectorAll('.caisse-cat-tab')).find(t => 
+  const activeTab = Array.from(document.querySelectorAll('.caisse-cat-tab')).find(t =>
     (caisseActiveCategory === 'bar' && t.textContent.includes('Bar')) ||
     (caisseActiveCategory === 'billard' && (t.textContent.includes('Autres') || t.textContent.includes('Billard')))
   );
@@ -2418,7 +2407,7 @@ async function submitCaisseOrder(paymentMode = 'auto') {
     }
 
     toggleLoading(false);
-    
+
     const toastClient = caisseIsFreeMode
       ? `Retrait gratuit (${freeCommentValue})`
       : (caisseSelectedMember ? (caisseSelectedMember.full_name || caisseSelectedMember.email) : 'Vente Directe');
@@ -4316,7 +4305,7 @@ async function clearMemberBalance(memberId, memberName = '', amountStr = '', met
     try {
       const { data: prof } = await supabaseClient.from('profiles').select('full_name, email').eq('id', memberId).maybeSingle();
       if (prof) resolvedName = prof.full_name || prof.email || '';
-    } catch (e) {}
+    } catch (e) { }
   }
   if (!skipConfirm) {
     const confirmMsg = (resolvedName && amountStr)
@@ -4600,7 +4589,7 @@ async function processSumUpSoloPayment(amountEur, description) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${cfg.apiKey}` }
           });
-        } catch (_) {}
+        } catch (_) { }
       }
       cleanup();
       resolve(false);
@@ -4656,7 +4645,7 @@ async function processSumUpSoloPayment(amountEur, description) {
                   if (pollTimer) clearInterval(pollTimer);
                 }
               }
-            } catch (_) {}
+            } catch (_) { }
           }, 2500);
         }
       } catch (e) {
@@ -5099,7 +5088,7 @@ async function deleteCurrentConsumption() {
           created_by_name: adminName,
           note: `Annulation conso ardoise #${oldCons.id} (${drink?.name || 'Article'}) : ${reason}`
         });
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // 3. Supprimer de la table consumptions
