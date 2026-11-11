@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'bc41-cache-v9';
+const CACHE_NAME = 'bc41-cache-v9';
 const urlsToCache = [
   './',
   './index.html',
