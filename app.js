@@ -699,6 +699,7 @@ function resetRestrictedUI() {
   const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
   const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
   const buvetteBtn = document.getElementById('buvette-header-btn');
+  const sumupCfgBtn = document.getElementById('caisse-sumup-config-btn');
   const sumupCfgModal = document.getElementById('sumup-config-modal');
   const sumupCheckoutModal = document.getElementById('sumup-checkout-modal');
 
@@ -708,6 +709,7 @@ function resetRestrictedUI() {
   if (mobileAdmin) mobileAdmin.style.display = 'none';
   if (editHomeBtn) editHomeBtn.style.display = 'none';
   if (buvetteBtn) buvetteBtn.classList.add('hidden');
+  if (sumupCfgBtn) sumupCfgBtn.style.display = 'none';
   if (sumupCfgModal) sumupCfgModal.classList.add('hidden');
   if (sumupCheckoutModal) sumupCheckoutModal.classList.add('hidden');
 }
@@ -761,6 +763,10 @@ function applyRoleAccessControl() {
   const mobileTournaments = document.querySelector('.mobile-nav-item[data-section="tournaments"]');
   const mobileAdmin = document.querySelector('.mobile-nav-item[data-section="admin"]');
   const editHomeBtn = document.getElementById('admin-edit-home-btn-container');
+  const sumupCfgBtn = document.getElementById('caisse-sumup-config-btn');
+  if (sumupCfgBtn) {
+    sumupCfgBtn.style.display = (cEmail === 'sebastien.tessier41@orange.fr') ? 'inline-flex' : 'none';
+  }
 
   // Find currently active section
   const activeNav = document.querySelector('.nav-menu li.active');
@@ -1751,6 +1757,10 @@ async function renderCaisseBarUI() {
   caisseSelectedMember = null;
   caisseIsFreeMode = false;
   caisseActiveCategory = 'bar';
+  const sumupCfgBtn = document.getElementById('caisse-sumup-config-btn');
+  if (sumupCfgBtn) {
+    sumupCfgBtn.style.display = isSumUpConfigOwner() ? 'inline-flex' : 'none';
+  }
   const freeBtn = document.getElementById('caisse-free-client-btn');
   const directBtn = document.getElementById('caisse-direct-client-btn');
   if (freeBtn) freeBtn.classList.remove('active');
@@ -4346,6 +4356,10 @@ async function clearMemberBalance(memberId, memberName = '', amountStr = '', met
 // ==============================================================================
 // INTÉGRATION TERMINAL CB SUMUP SOLO (CLOUD API)
 // ==============================================================================
+function isSumUpConfigOwner() {
+  return (currentUser?.email || '').toLowerCase().trim() === 'sebastien.tessier41@orange.fr';
+}
+
 function getSumUpConfig() {
   try {
     const raw = localStorage.getItem('bc41_sumup_config');
@@ -4380,7 +4394,7 @@ function updateSumUpStatusPill() {
 }
 
 async function loadSumUpConfigUI() {
-  if (currentUser?.profile?.role !== 'admin') return;
+  if (!isSumUpConfigOwner()) return;
   const cfg = getSumUpConfig();
   const enabledCb = document.getElementById('sumup-enabled-cb');
   const apiKeyIn = document.getElementById('sumup-api-key');
@@ -4402,8 +4416,8 @@ async function loadSumUpConfigUI() {
 window.loadSumUpConfigUI = loadSumUpConfigUI;
 
 function openSumUpConfigModal() {
-  if (currentUser?.profile?.role !== 'admin') {
-    alert("Accès réservé aux administrateurs.");
+  if (!isSumUpConfigOwner()) {
+    alert("Accès refusé : seul sebastien.tessier41@orange.fr est autorisé à configurer le boîtier SumUp.");
     return;
   }
   const modal = document.getElementById('sumup-config-modal');
@@ -4415,7 +4429,10 @@ function openSumUpConfigModal() {
 window.openSumUpConfigModal = openSumUpConfigModal;
 
 function saveSumUpConfig() {
-  if (currentUser?.profile?.role !== 'admin') return;
+  if (!isSumUpConfigOwner()) {
+    alert("Accès refusé : seul sebastien.tessier41@orange.fr est autorisé à modifier la configuration SumUp.");
+    return;
+  }
   const enabled = document.getElementById('sumup-enabled-cb')?.checked || false;
   const apiKey = (document.getElementById('sumup-api-key')?.value || '').trim();
   const merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
@@ -4432,6 +4449,7 @@ function saveSumUpConfig() {
 window.saveSumUpConfig = saveSumUpConfig;
 
 async function fetchSumUpMerchantAndReaders(silent = false) {
+  if (!isSumUpConfigOwner()) return;
   const apiKey = (document.getElementById('sumup-api-key')?.value || getSumUpConfig().apiKey || '').trim();
   if (!apiKey) {
     if (!silent) alert("Veuillez d'abord saisir votre Clé API SumUp (sup_sk_...).");
@@ -4486,6 +4504,10 @@ async function fetchSumUpMerchantAndReaders(silent = false) {
 window.fetchSumUpMerchantAndReaders = fetchSumUpMerchantAndReaders;
 
 async function pairNewSumUpSoloReader() {
+  if (!isSumUpConfigOwner()) {
+    alert("Accès refusé : seul sebastien.tessier41@orange.fr est autorisé à associer un boîtier SumUp.");
+    return;
+  }
   const apiKey = (document.getElementById('sumup-api-key')?.value || '').trim();
   let merchantCode = (document.getElementById('sumup-merchant-code')?.value || '').trim();
   const pairingCode = (document.getElementById('sumup-pairing-code')?.value || '').trim().toUpperCase();

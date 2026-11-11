@@ -1083,7 +1083,7 @@
                     </div>
                   </div>
                   <div style="display:flex; gap:0.4rem; align-items:center;">
-                    <button class="caisse-btn-action-sm" onclick="openSumUpConfigModal()" title="Configurer le boîtier CB SumUp Solo (Caisse Bar uniquement)" style="border-color:rgba(56, 189, 248, 0.4); color:#38bdf8;">
+                    <button id="caisse-sumup-config-btn" class="caisse-btn-action-sm" onclick="openSumUpConfigModal()" title="Configurer le boîtier CB SumUp Solo (Réservé à Sébastien Tessier)" style="display:none; border-color:rgba(56, 189, 248, 0.4); color:#38bdf8;">
                       <i data-lucide="settings" style="width: 13px; height: 13px;"></i> SumUp
                     </button>
                     <button class="caisse-btn-action-sm" onclick="resetCaisseCart()" title="Vider le panier">
@@ -2226,7 +2226,7 @@
     src="https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v17.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="tournaments.js?v=2.4.8" defer></script>
-  <script src="app.js?v=2.9.35" defer></script>
+  <script src="app.js?v=2.9.36" defer></script>
   <script>
     // Initialisation des icônes Lucide
     lucide.createIcons();
